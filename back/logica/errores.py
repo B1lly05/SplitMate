@@ -8,3 +8,11 @@ class EmailDuplicado(ErrorDeNegocio):
 
 class DatosInvalidos(ErrorDeNegocio):
     pass
+
+
+class NoAutorizado(ErrorDeNegocio):
+    pass
+
+
+class UsuarioNoEncontrado(ErrorDeNegocio):
+    pass
