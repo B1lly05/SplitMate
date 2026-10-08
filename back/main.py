@@ -9,4 +9,4 @@ def health():
 
 @app.get("/", response_class=HTMLResponse)
 def inicio():
-    return "<h1>SplitMate</h1><p>Aplicación en construcción.</p>"
+    return "<h1>SplitMate</h1><p>Reparte gastos con tus amigos. En construcción.</p>"
