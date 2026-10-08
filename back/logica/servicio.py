@@ -6,6 +6,7 @@ from back.logica.errores import (
     NoAutorizado,
     UsuarioNoEncontrado,
 )
+from back.logica.errores import DatosInvalidos, EmailDuplicado
 from back.logica.modelos import Estado, Rol, Usuario
 from back.logica.repositorio import RepositorioUsuarios
 
@@ -40,3 +41,4 @@ class ServicioUsuarios:
         if usuario is None:
             raise UsuarioNoEncontrado("El usuario no existe")
         return usuario.estado == Estado.ACTIVO
+        return self.repositorio.crear(email, rol, Estado.PENDIENTE)
