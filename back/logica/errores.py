@@ -21,3 +21,5 @@ class CuentaNoDisponible(ErrorDeNegocio):
     pass
 class NoAutenticado(ErrorDeNegocio):
     pass
+class CredencialesInvalidas(ErrorDeNegocio):
+    pass
