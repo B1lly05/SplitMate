@@ -19,3 +19,5 @@ class UsuarioNoEncontrado(ErrorDeNegocio):
 
 class CuentaNoDisponible(ErrorDeNegocio):
     pass
+class NoAutenticado(ErrorDeNegocio):
+    pass

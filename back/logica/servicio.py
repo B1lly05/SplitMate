@@ -6,6 +6,7 @@ from back.logica.errores import (
     EmailDuplicado,
     NoAutorizado,
     UsuarioNoEncontrado,
+    NoAutenticado
 )
 from back.logica.modelos import Estado, Rol, Usuario
 from back.logica.repositorio import RepositorioUsuarios
@@ -62,3 +63,11 @@ class ServicioUsuarios:
         if usuario.estado == Estado.PENDIENTE:
             raise CuentaNoDisponible("Debes confirmar tu correo antes de iniciar sesión")
         return usuario    
+    def identificar(self, id_usuario) -> Usuario:
+        """Devuelve el usuario que hace la petición, o falla si no es válido."""
+        if id_usuario is None:
+            raise NoAutenticado("Hay que identificarse")
+        usuario = self.repositorio.obtener_por_id(id_usuario)
+        if usuario is None or usuario.estado == Estado.ELIMINADO:
+            raise NoAutenticado("Usuario no válido")
+        return usuario
