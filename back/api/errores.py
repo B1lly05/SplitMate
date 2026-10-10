@@ -9,6 +9,7 @@ from back.logica.errores import (
     NoAutenticado,
     NoAutorizado,
     UsuarioNoEncontrado,
+    CredencialesInvalidas
 )
 
 CODIGOS = {
@@ -18,6 +19,7 @@ CODIGOS = {
     CuentaNoDisponible: 403,
     UsuarioNoEncontrado: 404,
     EmailDuplicado: 409,
+    CredencialesInvalidas: 401,
 }
 
 

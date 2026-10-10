@@ -1,12 +1,13 @@
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 
-from back.api import usuarios
+from back.api import usuarios,auth
 from back.api.errores import registrar_manejadores
 
 app = FastAPI()
 registrar_manejadores(app)
 app.include_router(usuarios.router)
+app.include_router(auth.router)
 
 
 @app.get("/health")

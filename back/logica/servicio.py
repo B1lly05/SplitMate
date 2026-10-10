@@ -18,8 +18,11 @@ LONGITUD_MINIMA_PASSWORD = 8
 
 
 class ServicioUsuarios:
-    def __init__(self, repositorio: RepositorioUsuarios):
+    def __init__(self, repositorio: RepositorioUsuarios,
+                 confirmar_automaticamente: bool = False):
         self.repositorio = repositorio
+        # TEMPORAL: mientras no exista la confirmación por correo (Hito 4)
+        self.confirmar_automaticamente = confirmar_automaticamente
 
     def _exigir_admin(self, solicitante: Usuario) -> None:
         if solicitante.rol != Rol.ADMIN:
@@ -32,7 +35,8 @@ class ServicioUsuarios:
             raise DatosInvalidos("El email no tiene un formato válido")
         if self.repositorio.obtener_por_email(email):
             raise EmailDuplicado("Ya existe un usuario con ese email")
-        return self.repositorio.crear(email, rol, Estado.PENDIENTE, password_hash)
+        estado = Estado.ACTIVO if self.confirmar_automaticamente else Estado.PENDIENTE
+        return self.repositorio.crear(email, rol, estado, password_hash)
 
     def registrar(self, email: str, password: str, rol: Rol = Rol.USUARIO) -> Usuario:
         """Registro local: valida la contraseña y la guarda solo como hash."""
