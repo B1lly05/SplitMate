@@ -3,11 +3,11 @@
 Aplicación web tipo SaaS para repartir gastos compartidos entre amigos, con gestión de usuarios y roles.
 Proyecto individual de *Procesos de Ingeniería del Software* (curso 2026-2027) — Sprint 1.
 
-> Estado: en desarrollo (Hito 1). Este README se completa a medida que avanza el proyecto.
+> Estado: Hito 1 completado, en desarrollo (Hito 2). Este README se completa a medida que avanza el proyecto.
 
 ## URL pública
 
-_Pendiente de desplegar (Google Cloud Run)._
+https://splitmate-731709189293.europe-west1.run.app (Google Cloud Run)
 
 ## Tecnologías
 
@@ -42,7 +42,7 @@ cd splitmate
 python -m venv .venv
 .venv\Scripts\activate          # Windows (Mac/Linux: source .venv/bin/activate)
 pip install -r requirements.txt
-cp .env.example .env            # y rellenar los valores
+Copy-Item .env.example .env     # Windows (Mac/Linux: cp .env.example .env) y rellenar los valores
 uvicorn back.main:app --reload
 ```
 
