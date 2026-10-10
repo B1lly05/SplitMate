@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+from typing import Optional
 
 
 class Rol(str, Enum):
@@ -19,3 +20,4 @@ class Usuario:
     email: str
     rol: Rol = Rol.USUARIO
     estado: Estado = Estado.PENDIENTE
+    password_hash: Optional[str] = None

@@ -1,17 +1,20 @@
 import re
+from typing import Optional
 
+from back.logica import seguridad
 from back.logica.errores import (
     CuentaNoDisponible,
     DatosInvalidos,
     EmailDuplicado,
+    NoAutenticado,
     NoAutorizado,
     UsuarioNoEncontrado,
-    NoAutenticado
 )
 from back.logica.modelos import Estado, Rol, Usuario
 from back.logica.repositorio import RepositorioUsuarios
 
 PATRON_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+LONGITUD_MINIMA_PASSWORD = 8
 
 
 class ServicioUsuarios:
@@ -22,13 +25,28 @@ class ServicioUsuarios:
         if solicitante.rol != Rol.ADMIN:
             raise NoAutorizado("Solo el administrador puede hacer esta operación")
 
-    def alta(self, email: str, rol: Rol = Rol.USUARIO) -> Usuario:
+    def alta(self, email: str, rol: Rol = Rol.USUARIO,
+             password_hash: Optional[str] = None) -> Usuario:
         email = email.strip().lower()
         if not PATRON_EMAIL.match(email):
             raise DatosInvalidos("El email no tiene un formato válido")
         if self.repositorio.obtener_por_email(email):
             raise EmailDuplicado("Ya existe un usuario con ese email")
-        return self.repositorio.crear(email, rol, Estado.PENDIENTE)
+        return self.repositorio.crear(email, rol, Estado.PENDIENTE, password_hash)
+
+    def registrar(self, email: str, password: str, rol: Rol = Rol.USUARIO) -> Usuario:
+        """Registro local: valida la contraseña y la guarda solo como hash."""
+        if len(password) < LONGITUD_MINIMA_PASSWORD:
+            raise DatosInvalidos(
+                f"La contraseña debe tener al menos {LONGITUD_MINIMA_PASSWORD} caracteres"
+            )
+        # Se valida el email antes de gastar tiempo en calcular el hash
+        email_limpio = email.strip().lower()
+        if not PATRON_EMAIL.match(email_limpio):
+            raise DatosInvalidos("El email no tiene un formato válido")
+        if self.repositorio.obtener_por_email(email_limpio):
+            raise EmailDuplicado("Ya existe un usuario con ese email")
+        return self.alta(email_limpio, rol, seguridad.hashear(password))
 
     def listar(self, solicitante: Usuario) -> list[Usuario]:
         self._exigir_admin(solicitante)
@@ -62,7 +80,8 @@ class ServicioUsuarios:
             raise CuentaNoDisponible("La cuenta ha sido eliminada")
         if usuario.estado == Estado.PENDIENTE:
             raise CuentaNoDisponible("Debes confirmar tu correo antes de iniciar sesión")
-        return usuario    
+        return usuario
+
     def identificar(self, id_usuario) -> Usuario:
         """Devuelve el usuario que hace la petición, o falla si no es válido."""
         if id_usuario is None:

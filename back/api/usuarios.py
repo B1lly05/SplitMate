@@ -8,8 +8,9 @@ from back.logica.servicio import ServicioUsuarios
 router = APIRouter(prefix="/usuarios", tags=["usuarios"])
 
 
-class UsuarioEntrada(BaseModel):
+class RegistroEntrada(BaseModel):
     email: str
+    password: str
 
 
 class UsuarioSalida(BaseModel):
@@ -21,10 +22,9 @@ class UsuarioSalida(BaseModel):
 
 
 @router.post("", response_model=UsuarioSalida, status_code=201)
-def alta(datos: UsuarioEntrada, servicio: ServicioUsuarios = Depends(get_servicio)):
+def registro(datos: RegistroEntrada, servicio: ServicioUsuarios = Depends(get_servicio)):
     # El rol nunca se acepta desde fuera: todo registro es un usuario normal
-    return servicio.alta(datos.email)
-
+    return servicio.registrar(datos.email, datos.password)
 
 @router.get("", response_model=list[UsuarioSalida])
 def listar(

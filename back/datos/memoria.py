@@ -9,8 +9,10 @@ class RepositorioMemoria(RepositorioUsuarios):
         self._usuarios: dict[int, Usuario] = {}
         self._siguiente_id = 1
 
-    def crear(self, email: str, rol: Rol, estado: Estado) -> Usuario:
-        usuario = Usuario(id=self._siguiente_id, email=email, rol=rol, estado=estado)
+    def crear(self, email: str, rol: Rol, estado: Estado,
+              password_hash: Optional[str] = None) -> Usuario:
+        usuario = Usuario(id=self._siguiente_id, email=email, rol=rol,
+                          estado=estado, password_hash=password_hash)
         self._usuarios[usuario.id] = usuario
         self._siguiente_id += 1
         return usuario
