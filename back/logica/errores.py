@@ -16,3 +16,6 @@ class NoAutorizado(ErrorDeNegocio):
 
 class UsuarioNoEncontrado(ErrorDeNegocio):
     pass
+
+class CuentaNoDisponible(ErrorDeNegocio):
+    pass

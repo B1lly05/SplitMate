@@ -4,7 +4,7 @@ from back.datos.memoria import RepositorioMemoria
 from back.logica.errores import DatosInvalidos, EmailDuplicado
 from back.logica.modelos import Estado, Rol
 from back.logica.servicio import ServicioUsuarios
-from back.logica.errores import NoAutorizado,UsuarioNoEncontrado
+from back.logica.errores import NoAutorizado,UsuarioNoEncontrado,CuentaNoDisponible
 
 @pytest.fixture
 def servicio():
@@ -73,3 +73,61 @@ def test_usuario_normal_no_puede_consultar_si_esta_activo(servicio):
     normal = servicio.alta("ana@ejemplo.com")
     with pytest.raises(NoAutorizado):
         servicio.esta_activo(normal, normal.id)
+def _activar(servicio, usuario):
+    usuario.estado = Estado.ACTIVO
+    servicio.repositorio.actualizar(usuario)
+    return usuario
+
+
+def test_admin_puede_eliminar_a_otro_usuario(servicio):
+    admin = _crear_admin(servicio)
+    ana = servicio.alta("ana@ejemplo.com")
+    servicio.eliminar(admin, ana.id)
+    assert servicio.repositorio.obtener_por_id(ana.id).estado == Estado.ELIMINADO
+
+
+def test_usuario_puede_eliminar_su_propia_cuenta(servicio):
+    ana = servicio.alta("ana@ejemplo.com")
+    servicio.eliminar(ana, ana.id)
+    assert servicio.repositorio.obtener_por_id(ana.id).estado == Estado.ELIMINADO
+
+
+def test_usuario_normal_no_puede_eliminar_a_otro(servicio):
+    ana = servicio.alta("ana@ejemplo.com")
+    luis = servicio.alta("luis@ejemplo.com")
+    with pytest.raises(NoAutorizado):
+        servicio.eliminar(ana, luis.id)
+    assert servicio.repositorio.obtener_por_id(luis.id).estado != Estado.ELIMINADO
+
+
+def test_eliminar_usuario_inexistente_falla(servicio):
+    admin = _crear_admin(servicio)
+    with pytest.raises(UsuarioNoEncontrado):
+        servicio.eliminar(admin, 999)
+
+
+def test_eliminar_dos_veces_falla(servicio):
+    admin = _crear_admin(servicio)
+    ana = servicio.alta("ana@ejemplo.com")
+    servicio.eliminar(admin, ana.id)
+    with pytest.raises(UsuarioNoEncontrado):
+        servicio.eliminar(admin, ana.id)
+
+
+def test_usuario_eliminado_no_puede_acceder(servicio):
+    admin = _crear_admin(servicio)
+    ana = _activar(servicio, servicio.alta("ana@ejemplo.com"))
+    servicio.eliminar(admin, ana.id)
+    with pytest.raises(CuentaNoDisponible):
+        servicio.comprobar_acceso("ana@ejemplo.com")
+
+
+def test_usuario_pendiente_no_puede_acceder(servicio):
+    servicio.alta("ana@ejemplo.com")
+    with pytest.raises(CuentaNoDisponible):
+        servicio.comprobar_acceso("ana@ejemplo.com")
+
+
+def test_usuario_activo_puede_acceder(servicio):
+    ana = _activar(servicio, servicio.alta("ana@ejemplo.com"))
+    assert servicio.comprobar_acceso("ana@ejemplo.com").id == ana.id
