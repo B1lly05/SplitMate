@@ -7,6 +7,7 @@ from back.logica.modelos import Rol
 from back.logica.servicio import ServicioUsuarios
 from back.main import app
 
+CLAVE = "clave-segura-1"
 
 @pytest.fixture
 def servicio():
@@ -24,21 +25,42 @@ def _cabecera(usuario):
     return {"X-Usuario-Id": str(usuario.id)}
 
 
-def test_alta_devuelve_201_y_usuario_pendiente(cliente):
-    r = cliente.post("/usuarios", json={"email": "ana@ejemplo.com"})
+def test_registro_devuelve_201_y_usuario_pendiente(cliente):
+    r = cliente.post("/usuarios", json={"email": "ana@ejemplo.com", "password": CLAVE})
     assert r.status_code == 201
     assert r.json()["estado"] == "pendiente"
 
 
-def test_alta_ignora_el_rol_enviado(cliente):
-    r = cliente.post("/usuarios", json={"email": "ana@ejemplo.com", "rol": "admin"})
+def test_registro_no_devuelve_la_contrasena_ni_el_hash(cliente):
+    r = cliente.post("/usuarios", json={"email": "ana@ejemplo.com", "password": CLAVE})
+    assert "password" not in r.json()
+    assert "password_hash" not in r.json()
+
+
+def test_registro_ignora_el_rol_enviado(cliente):
+    r = cliente.post("/usuarios", json={"email": "ana@ejemplo.com", "password": CLAVE, "rol": "admin"})
     assert r.json()["rol"] == "usuario"
 
 
-def test_alta_duplicada_devuelve_409(cliente):
-    cliente.post("/usuarios", json={"email": "ana@ejemplo.com"})
-    r = cliente.post("/usuarios", json={"email": "ana@ejemplo.com"})
+def test_registro_duplicado_devuelve_409(cliente):
+    cliente.post("/usuarios", json={"email": "ana@ejemplo.com", "password": CLAVE})
+    r = cliente.post("/usuarios", json={"email": "ana@ejemplo.com", "password": CLAVE})
     assert r.status_code == 409
+
+
+def test_registro_con_email_invalido_devuelve_400(cliente):
+    r = cliente.post("/usuarios", json={"email": "no-es-email", "password": CLAVE})
+    assert r.status_code == 400
+
+
+def test_registro_con_contrasena_corta_devuelve_400(cliente):
+    r = cliente.post("/usuarios", json={"email": "ana@ejemplo.com", "password": "corta"})
+    assert r.status_code == 400
+
+
+def test_registro_sin_contrasena_devuelve_422(cliente):
+    r = cliente.post("/usuarios", json={"email": "ana@ejemplo.com"})
+    assert r.status_code == 422
 
 
 def test_alta_con_email_invalido_devuelve_400(cliente):

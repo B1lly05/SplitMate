@@ -5,6 +5,7 @@ from back.logica.errores import DatosInvalidos, EmailDuplicado
 from back.logica.modelos import Estado, Rol
 from back.logica.servicio import ServicioUsuarios
 from back.logica.errores import NoAutorizado,UsuarioNoEncontrado,CuentaNoDisponible
+from back.logica import seguridad
 
 @pytest.fixture
 def servicio():
@@ -131,3 +132,29 @@ def test_usuario_pendiente_no_puede_acceder(servicio):
 def test_usuario_activo_puede_acceder(servicio):
     ana = _activar(servicio, servicio.alta("ana@ejemplo.com"))
     assert servicio.comprobar_acceso("ana@ejemplo.com").id == ana.id
+
+def test_registrar_guarda_hash_y_no_la_contrasena(servicio):
+    usuario = servicio.registrar("ana@ejemplo.com", "clave-segura-1")
+    assert usuario.password_hash != "clave-segura-1"
+    assert "clave-segura-1" not in usuario.password_hash
+    assert seguridad.verificar("clave-segura-1", usuario.password_hash)
+
+
+def test_hash_no_acepta_contrasena_incorrecta(servicio):
+    usuario = servicio.registrar("ana@ejemplo.com", "clave-segura-1")
+    assert seguridad.verificar("otra-clave", usuario.password_hash) is False
+
+
+def test_registrar_deja_la_cuenta_pendiente(servicio):
+    assert servicio.registrar("ana@ejemplo.com", "clave-segura-1").estado == Estado.PENDIENTE
+
+
+def test_registrar_con_contrasena_corta_falla(servicio):
+    with pytest.raises(DatosInvalidos):
+        servicio.registrar("ana@ejemplo.com", "corta")
+
+
+def test_registrar_con_email_duplicado_falla(servicio):
+    servicio.registrar("ana@ejemplo.com", "clave-segura-1")
+    with pytest.raises(EmailDuplicado):
+        servicio.registrar("ana@ejemplo.com", "clave-segura-2")    
