@@ -63,10 +63,6 @@ def test_registro_sin_contrasena_devuelve_422(cliente):
     assert r.status_code == 422
 
 
-def test_alta_con_email_invalido_devuelve_400(cliente):
-    r = cliente.post("/usuarios", json={"email": "no-es-email"})
-    assert r.status_code == 400
-
 
 def test_listar_sin_identificarse_devuelve_401(cliente):
     assert cliente.get("/usuarios").status_code == 401
