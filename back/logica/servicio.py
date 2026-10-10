@@ -1,6 +1,7 @@
 import re
 
 from back.logica.errores import (
+    CuentaNoDisponible,
     DatosInvalidos,
     EmailDuplicado,
     NoAutorizado,
@@ -40,3 +41,24 @@ class ServicioUsuarios:
         if usuario is None:
             raise UsuarioNoEncontrado("El usuario no existe")
         return usuario.estado == Estado.ACTIVO
+
+    def eliminar(self, solicitante: Usuario, id_usuario: int) -> None:
+        """El admin elimina a cualquiera; un usuario normal solo a sí mismo."""
+        if solicitante.rol != Rol.ADMIN and solicitante.id != id_usuario:
+            raise NoAutorizado("Solo puedes eliminar tu propia cuenta")
+        objetivo = self.repositorio.obtener_por_id(id_usuario)
+        if objetivo is None or objetivo.estado == Estado.ELIMINADO:
+            raise UsuarioNoEncontrado("El usuario no existe")
+        objetivo.estado = Estado.ELIMINADO
+        self.repositorio.actualizar(objetivo)
+
+    def comprobar_acceso(self, email: str) -> Usuario:
+        """Comprueba si una cuenta puede iniciar sesión (se usará en el login)."""
+        usuario = self.repositorio.obtener_por_email(email.strip().lower())
+        if usuario is None:
+            raise UsuarioNoEncontrado("El usuario no existe")
+        if usuario.estado == Estado.ELIMINADO:
+            raise CuentaNoDisponible("La cuenta ha sido eliminada")
+        if usuario.estado == Estado.PENDIENTE:
+            raise CuentaNoDisponible("Debes confirmar tu correo antes de iniciar sesión")
+        return usuario    
