@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel, ConfigDict
 
-from back.api.dependencias import get_servicio, solicitante_actual
+from back.api.dependencias import get_servicio, usuario_de_sesion
 from back.logica.modelos import Estado, Rol, Usuario
 from back.logica.servicio import ServicioUsuarios
 
@@ -28,7 +28,7 @@ def registro(datos: RegistroEntrada, servicio: ServicioUsuarios = Depends(get_se
 
 @router.get("", response_model=list[UsuarioSalida])
 def listar(
-    solicitante: Usuario = Depends(solicitante_actual),
+    solicitante: Usuario = Depends(usuario_de_sesion),
     servicio: ServicioUsuarios = Depends(get_servicio),
 ):
     return servicio.listar(solicitante)
@@ -37,7 +37,7 @@ def listar(
 @router.get("/{id_usuario}/activo")
 def esta_activo(
     id_usuario: int,
-    solicitante: Usuario = Depends(solicitante_actual),
+    solicitante: Usuario = Depends(usuario_de_sesion),
     servicio: ServicioUsuarios = Depends(get_servicio),
 ):
     return {"activo": servicio.esta_activo(solicitante, id_usuario)}
@@ -46,7 +46,7 @@ def esta_activo(
 @router.delete("/{id_usuario}", status_code=204)
 def eliminar(
     id_usuario: int,
-    solicitante: Usuario = Depends(solicitante_actual),
+    solicitante: Usuario = Depends(usuario_de_sesion),
     servicio: ServicioUsuarios = Depends(get_servicio),
 ):
     servicio.eliminar(solicitante, id_usuario)

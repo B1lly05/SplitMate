@@ -1,13 +1,16 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from back.api.dependencias import get_servicio
+from back.api.dependencias import get_auth, get_servicio
 from back.datos.memoria import RepositorioMemoria
-from back.logica.modelos import Rol
+from back.datos.sesiones_memoria import RepositorioSesionesMemoria
+from back.logica.auth import ServicioAuth
+from back.logica.modelos import Estado, Rol
 from back.logica.servicio import ServicioUsuarios
 from back.main import app
 
 CLAVE = "clave-segura-1"
+
 
 @pytest.fixture
 def servicio():
@@ -16,15 +19,26 @@ def servicio():
 
 @pytest.fixture
 def cliente(servicio):
+    auth = ServicioAuth(servicio, RepositorioSesionesMemoria())
     app.dependency_overrides[get_servicio] = lambda: servicio
+    app.dependency_overrides[get_auth] = lambda: auth
     yield TestClient(app)
     app.dependency_overrides.clear()
 
 
-def _cabecera(usuario):
-    return {"X-Usuario-Id": str(usuario.id)}
+def _crear(servicio, email, rol=Rol.USUARIO):
+    usuario = servicio.registrar(email, CLAVE, rol)
+    usuario.estado = Estado.ACTIVO
+    servicio.repositorio.actualizar(usuario)
+    return usuario
 
 
+def _entrar(cliente, email):
+    r = cliente.post("/auth/login", json={"email": email, "password": CLAVE})
+    assert r.status_code == 200
+
+
+# ---- Registro (ruta pública) ----
 def test_registro_devuelve_201_y_usuario_pendiente(cliente):
     r = cliente.post("/usuarios", json={"email": "ana@ejemplo.com", "password": CLAVE})
     assert r.status_code == 201
@@ -63,40 +77,87 @@ def test_registro_sin_contrasena_devuelve_422(cliente):
     assert r.status_code == 422
 
 
+# ---- Rutas protegidas: sin sesión válida se rechazan ----
+@pytest.mark.parametrize("metodo,ruta", [
+    ("get", "/usuarios"),
+    ("get", "/usuarios/1/activo"),
+    ("delete", "/usuarios/1"),
+    ("get", "/auth/sesion"),
+])
+def test_rutas_privadas_rechazan_peticiones_sin_sesion(cliente, metodo, ruta):
+    assert getattr(cliente, metodo)(ruta).status_code == 401
 
-def test_listar_sin_identificarse_devuelve_401(cliente):
+
+def test_la_cabecera_antigua_ya_no_autentica(cliente, servicio):
+    admin = _crear(servicio, "admin@ejemplo.com", Rol.ADMIN)
+    r = cliente.get("/usuarios", headers={"X-Usuario-Id": str(admin.id)})
+    assert r.status_code == 401
+
+
+def test_tras_cerrar_sesion_la_ruta_privada_se_rechaza(cliente, servicio):
+    _crear(servicio, "admin@ejemplo.com", Rol.ADMIN)
+    _entrar(cliente, "admin@ejemplo.com")
+    assert cliente.get("/usuarios").status_code == 200
+    cliente.post("/auth/logout")
     assert cliente.get("/usuarios").status_code == 401
 
 
+def test_rutas_publicas_no_piden_sesion(cliente):
+    assert cliente.get("/health").status_code == 200
+    assert cliente.get("/").status_code == 200
+
+
+# ---- Rutas de administrador ----
 def test_listar_como_usuario_normal_devuelve_403(cliente, servicio):
-    normal = servicio.alta("ana@ejemplo.com")
-    assert cliente.get("/usuarios", headers=_cabecera(normal)).status_code == 403
+    _crear(servicio, "ana@ejemplo.com")
+    _entrar(cliente, "ana@ejemplo.com")
+    assert cliente.get("/usuarios").status_code == 403
 
 
 def test_listar_como_admin_devuelve_200(cliente, servicio):
-    admin = servicio.alta("admin@ejemplo.com", Rol.ADMIN)
-    servicio.alta("ana@ejemplo.com")
-    r = cliente.get("/usuarios", headers=_cabecera(admin))
-    assert r.status_code == 200
-    assert len(r.json()) == 2
+    _crear(servicio, "admin@ejemplo.com", Rol.ADMIN)
+    _crear(servicio, "ana@ejemplo.com")
+    _entrar(cliente, "admin@ejemplo.com")
+    r = cliente.get("/usuarios")
+    assert r.status_code == 200 and len(r.json()) == 2
 
 
 def test_consultar_activo_como_admin(cliente, servicio):
-    admin = servicio.alta("admin@ejemplo.com", Rol.ADMIN)
-    ana = servicio.alta("ana@ejemplo.com")
-    r = cliente.get(f"/usuarios/{ana.id}/activo", headers=_cabecera(admin))
-    assert r.status_code == 200
-    assert r.json() == {"activo": False}
+    _crear(servicio, "admin@ejemplo.com", Rol.ADMIN)
+    ana = servicio.registrar("ana@ejemplo.com", CLAVE)  # pendiente
+    _entrar(cliente, "admin@ejemplo.com")
+    r = cliente.get(f"/usuarios/{ana.id}/activo")
+    assert r.status_code == 200 and r.json() == {"activo": False}
+
+
+def test_consultar_activo_como_usuario_normal_devuelve_403(cliente, servicio):
+    ana = _crear(servicio, "ana@ejemplo.com")
+    _entrar(cliente, "ana@ejemplo.com")
+    assert cliente.get(f"/usuarios/{ana.id}/activo").status_code == 403
 
 
 def test_usuario_normal_no_puede_eliminar_a_otro(cliente, servicio):
-    ana = servicio.alta("ana@ejemplo.com")
-    luis = servicio.alta("luis@ejemplo.com")
-    r = cliente.delete(f"/usuarios/{luis.id}", headers=_cabecera(ana))
-    assert r.status_code == 403
+    _crear(servicio, "ana@ejemplo.com")
+    luis = _crear(servicio, "luis@ejemplo.com")
+    _entrar(cliente, "ana@ejemplo.com")
+    assert cliente.delete(f"/usuarios/{luis.id}").status_code == 403
 
 
 def test_usuario_puede_eliminar_su_propia_cuenta(cliente, servicio):
-    ana = servicio.alta("ana@ejemplo.com")
-    r = cliente.delete(f"/usuarios/{ana.id}", headers=_cabecera(ana))
-    assert r.status_code == 204
+    ana = _crear(servicio, "ana@ejemplo.com")
+    _entrar(cliente, "ana@ejemplo.com")
+    assert cliente.delete(f"/usuarios/{ana.id}").status_code == 204
+
+
+def test_admin_puede_eliminar_a_otro_usuario(cliente, servicio):
+    _crear(servicio, "admin@ejemplo.com", Rol.ADMIN)
+    luis = _crear(servicio, "luis@ejemplo.com")
+    _entrar(cliente, "admin@ejemplo.com")
+    assert cliente.delete(f"/usuarios/{luis.id}").status_code == 204
+
+
+def test_usuario_eliminado_pierde_el_acceso(cliente, servicio):
+    ana = _crear(servicio, "ana@ejemplo.com")
+    _entrar(cliente, "ana@ejemplo.com")
+    cliente.delete(f"/usuarios/{ana.id}")
+    assert cliente.get("/auth/sesion").status_code == 401
