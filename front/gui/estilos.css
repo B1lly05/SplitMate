@@ -1,0 +1,82 @@
+:root {
+  --fondo: #f6f7f9;
+  --tarjeta: #ffffff;
+  --texto: #1c2430;
+  --suave: #5b6675;
+  --acento: #2563eb;
+  --error: #b42318;
+  --ok: #067647;
+  --borde: #d5dae1;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fondo: #12161c;
+    --tarjeta: #1b212a;
+    --texto: #e8ecf1;
+    --suave: #9aa6b5;
+    --acento: #6ea0ff;
+    --error: #ff8a80;
+    --ok: #5fd39a;
+    --borde: #2e3744;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--fondo);
+  color: var(--texto);
+}
+
+main {
+  max-width: 26rem;
+  margin: 3rem auto;
+  padding: 1.5rem;
+  background: var(--tarjeta);
+  border: 1px solid var(--borde);
+  border-radius: 0.75rem;
+}
+
+h1 { margin: 0; }
+h2 { margin-top: 1.5rem; }
+.lema { margin: 0.25rem 0 0; color: var(--suave); }
+
+form { display: grid; gap: 0.9rem; }
+label { display: grid; gap: 0.3rem; font-size: 0.9rem; }
+
+input {
+  padding: 0.6rem 0.7rem;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--borde);
+  border-radius: 0.4rem;
+}
+
+button {
+  padding: 0.65rem 1rem;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: var(--acento);
+  border: 0;
+  border-radius: 0.4rem;
+  cursor: pointer;
+}
+button:disabled { opacity: 0.6; cursor: wait; }
+
+a { color: var(--acento); }
+dl { display: grid; grid-template-columns: auto 1fr; gap: 0.4rem 1rem; }
+dt { color: var(--suave); }
+dd { margin: 0; }
+
+.mensaje { min-height: 1.25rem; margin: 0.75rem 0 0; font-size: 0.9rem; }
+.mensaje.error { color: var(--error); }
+.mensaje.ok { color: var(--ok); }
+
+@media (max-width: 30rem) {
+  main { margin: 0; border: 0; border-radius: 0; min-height: 100vh; }
+}
