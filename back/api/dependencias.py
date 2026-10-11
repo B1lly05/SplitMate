@@ -1,7 +1,7 @@
 import os
 from datetime import timedelta
 
-from fastapi import Cookie, Depends, Header
+from fastapi import Cookie, Depends
 
 from back.datos.memoria import RepositorioMemoria
 from back.datos.sesiones_memoria import RepositorioSesionesMemoria
@@ -32,14 +32,6 @@ def get_servicio() -> ServicioUsuarios:
 
 def get_auth() -> ServicioAuth:
     return _auth
-
-
-def solicitante_actual(
-    x_usuario_id: int | None = Header(default=None),
-    servicio: ServicioUsuarios = Depends(get_servicio),
-) -> Usuario:
-    # PROVISIONAL: se sustituirá por la sesión real en el PBI-15
-    return servicio.identificar(x_usuario_id)
 
 
 def usuario_de_sesion(
