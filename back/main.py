@@ -7,12 +7,13 @@ from fastapi.staticfiles import StaticFiles
 
 from back.api import auth, dependencias, usuarios
 from back.api.errores import registrar_manejadores
-
+from back.logs import configurar_logging
 FRONT = Path(__file__).resolve().parent.parent / "front"
 
 
 @asynccontextmanager
 async def ciclo_de_vida(app: FastAPI):
+    configurar_logging()
     dependencias.preparar()  # conecta con la base de datos al arrancar
     yield
 

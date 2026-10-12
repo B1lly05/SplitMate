@@ -1,3 +1,4 @@
+import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Callable, Optional
@@ -7,6 +8,8 @@ from back.logica.errores import CredencialesInvalidas, CuentaNoDisponible, NoAut
 from back.logica.modelos import Estado, Usuario
 from back.logica.servicio import ServicioUsuarios
 from back.logica.sesiones import RepositorioSesiones, Sesion
+
+log = logging.getLogger("splitmate.auth")
 
 
 def _ahora() -> datetime:
@@ -23,21 +26,27 @@ class ServicioAuth:
         self.reloj = reloj
 
     def login(self, email: str, password: str) -> tuple[str, Usuario]:
-        usuario = self.usuarios.repositorio.obtener_por_email(email.strip().lower())
+        email = email.strip().lower()
+        usuario = self.usuarios.repositorio.obtener_por_email(email)
         # Mismo mensaje si el email no existe o la contraseña falla (no revela cuentas)
         if (usuario is None or usuario.password_hash is None
                 or not seguridad.verificar(password, usuario.password_hash)):
+            log.warning("Inicio de sesión fallido para %s", email)
             raise CredencialesInvalidas("Email o contraseña incorrectos")
         if usuario.estado == Estado.ELIMINADO:
+            log.warning("Inicio de sesión rechazado: cuenta eliminada id=%s", usuario.id)
             raise CuentaNoDisponible("La cuenta ha sido eliminada")
         if usuario.estado == Estado.PENDIENTE:
+            log.warning("Inicio de sesión rechazado: cuenta pendiente id=%s", usuario.id)
             raise CuentaNoDisponible("Debes confirmar tu correo antes de iniciar sesión")
         token = secrets.token_urlsafe(32)
         self.sesiones.guardar(Sesion(token, usuario.id, self.reloj() + self.duracion))
+        log.info("Inicio de sesión correcto id=%s", usuario.id)
         return token, usuario
 
     def logout(self, token: str) -> None:
         self.sesiones.eliminar(token)
+        log.info("Sesión cerrada")
 
     def usuario_de_sesion(self, token: Optional[str]) -> Usuario:
         if not token:
