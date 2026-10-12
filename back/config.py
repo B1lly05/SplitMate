@@ -14,6 +14,7 @@ def _activado(nombre: str) -> bool:
 
 MONGODB_URI = os.getenv("MONGODB_URI", "").strip()
 MONGODB_DB = os.getenv("MONGODB_DB", "").strip() or "splitmate"
+LOG_LEVEL = os.getenv("LOG_LEVEL", "").strip().upper() or "INFO"
 # Primer administrador: se crea al arrancar si todavía no existe (ver dependencias.preparar)
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "").strip()
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")

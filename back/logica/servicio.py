@@ -1,3 +1,4 @@
+import logging
 import re
 from typing import Optional
 
@@ -13,25 +14,26 @@ from back.logica.errores import (
 from back.logica.modelos import Estado, Rol, Usuario
 from back.logica.repositorio import RepositorioUsuarios
 
+log = logging.getLogger("splitmate.usuarios")
+
 PATRON_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 LONGITUD_MINIMA_PASSWORD = 8
 
 
 class ServicioUsuarios:
-    def __init__(
-        self, repositorio: RepositorioUsuarios, confirmar_automaticamente: bool = False
-    ):
+    def __init__(self, repositorio: RepositorioUsuarios,
+                 confirmar_automaticamente: bool = False):
         self.repositorio = repositorio
         # TEMPORAL: mientras no exista la confirmación por correo (Hito 4)
         self.confirmar_automaticamente = confirmar_automaticamente
 
     def _exigir_admin(self, solicitante: Usuario) -> None:
         if solicitante.rol != Rol.ADMIN:
+            log.warning("Acceso denegado: el usuario id=%s no es administrador", solicitante.id)
             raise NoAutorizado("Solo el administrador puede hacer esta operación")
 
-    def alta(
-        self, email: str, rol: Rol = Rol.USUARIO, password_hash: Optional[str] = None
-    ) -> Usuario:
+    def alta(self, email: str, rol: Rol = Rol.USUARIO,
+             password_hash: Optional[str] = None) -> Usuario:
         email = email.strip().lower()
         if not PATRON_EMAIL.match(email):
             raise DatosInvalidos("El email no tiene un formato válido")
@@ -52,7 +54,10 @@ class ServicioUsuarios:
             raise DatosInvalidos("El email no tiene un formato válido")
         if self.repositorio.obtener_por_email(email_limpio):
             raise EmailDuplicado("Ya existe un usuario con ese email")
-        return self.alta(email_limpio, rol, seguridad.hashear(password))
+        usuario = self.alta(email_limpio, rol, seguridad.hashear(password))
+        log.info("Usuario registrado id=%s rol=%s estado=%s",
+                 usuario.id, usuario.rol.value, usuario.estado.value)
+        return usuario
 
     def crear_admin_inicial(self, email: str, password: str) -> bool:
         """Crea el primer administrador (activo) si todavía no existe ese email.
@@ -81,24 +86,25 @@ class ServicioUsuarios:
     def eliminar(self, solicitante: Usuario, id_usuario: int) -> None:
         """El admin elimina a cualquiera; un usuario normal solo a sí mismo."""
         if solicitante.rol != Rol.ADMIN and solicitante.id != id_usuario:
+            log.warning("Intento de eliminar una cuenta ajena: id=%s -> id=%s",
+                        solicitante.id, id_usuario)
             raise NoAutorizado("Solo puedes eliminar tu propia cuenta")
         objetivo = self.repositorio.obtener_por_id(id_usuario)
         if objetivo is None or objetivo.estado == Estado.ELIMINADO:
             raise UsuarioNoEncontrado("El usuario no existe")
         objetivo.estado = Estado.ELIMINADO
         self.repositorio.actualizar(objetivo)
+        log.info("Usuario eliminado id=%s por id=%s", id_usuario, solicitante.id)
 
     def comprobar_acceso(self, email: str) -> Usuario:
-        """Comprueba si una cuenta puede iniciar sesión (se usará en el login)."""
+        """Comprueba si una cuenta puede iniciar sesión."""
         usuario = self.repositorio.obtener_por_email(email.strip().lower())
         if usuario is None:
             raise UsuarioNoEncontrado("El usuario no existe")
         if usuario.estado == Estado.ELIMINADO:
             raise CuentaNoDisponible("La cuenta ha sido eliminada")
         if usuario.estado == Estado.PENDIENTE:
-            raise CuentaNoDisponible(
-                "Debes confirmar tu correo antes de iniciar sesión"
-            )
+            raise CuentaNoDisponible("Debes confirmar tu correo antes de iniciar sesión")
         return usuario
 
     def identificar(self, id_usuario) -> Usuario:
