@@ -11,6 +11,7 @@ from back.datos.sesiones_memoria import RepositorioSesionesMemoria
 from back.logica.auth import ServicioAuth
 from back.logica.modelos import Usuario
 from back.logica.servicio import ServicioUsuarios
+from back.logica.errores import ErrorDeNegocio
 
 log = logging.getLogger("splitmate")
 
@@ -24,18 +25,30 @@ def _componentes():
     """Ensambla las piezas. Es el único sitio que decide qué repositorios se usan:
     cambiar de memoria a base de datos no toca la capa de lógica."""
     if config.MONGODB_URI:
-        usuarios, sesiones = crear_repositorios_mongo(config.MONGODB_URI, config.MONGODB_DB)
+        usuarios, sesiones = crear_repositorios_mongo(
+            config.MONGODB_URI, config.MONGODB_DB
+        )
         log.info("Usando MongoDB (base de datos '%s')", config.MONGODB_DB)
     else:
         usuarios, sesiones = RepositorioMemoria(), RepositorioSesionesMemoria()
-        log.warning("MONGODB_URI no definida: usando memoria (los datos no se conservan)")
+        log.warning(
+            "MONGODB_URI no definida: usando memoria (los datos no se conservan)"
+        )
     servicio = ServicioUsuarios(usuarios, config.CONFIRMAR_AUTOMATICAMENTE)
     return servicio, ServicioAuth(servicio, sesiones, DURACION_SESION)
 
 
 def preparar() -> None:
     """Se llama al arrancar: si la base de datos falla, la aplicación no arranca."""
-    _componentes()
+    servicio, _ = _componentes()
+    if config.ADMIN_EMAIL and config.ADMIN_PASSWORD:
+        try:
+            if servicio.crear_admin_inicial(config.ADMIN_EMAIL, config.ADMIN_PASSWORD):
+                log.info("Administrador inicial creado")
+            else:
+                log.info("El administrador inicial ya existe: no se modifica")
+        except ErrorDeNegocio as error:
+            log.warning("No se pudo crear el administrador inicial: %s", error)
 
 
 def get_servicio() -> ServicioUsuarios:

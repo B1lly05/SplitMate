@@ -1,0 +1,76 @@
+import mongomock
+import pytest
+
+from back.datos.memoria import RepositorioMemoria
+from back.datos.mongo import RepositorioSesionesMongo, RepositorioUsuariosMongo
+from back.datos.sesiones_memoria import RepositorioSesionesMemoria
+from back.logica.auth import ServicioAuth
+from back.logica.errores import CredencialesInvalidas, DatosInvalidos, NoAutorizado
+from back.logica.modelos import Estado, Rol
+from back.logica.servicio import ServicioUsuarios
+
+CLAVE_ADMIN = "clave-admin-1"
+
+
+@pytest.fixture(params=["memoria", "mongo"])
+def pila(request):
+    if request.param == "memoria":
+        usuarios = ServicioUsuarios(RepositorioMemoria())
+        return usuarios, ServicioAuth(usuarios, RepositorioSesionesMemoria())
+    base = mongomock.MongoClient()["pruebas"]
+    usuarios = ServicioUsuarios(RepositorioUsuariosMongo(base))
+    return usuarios, ServicioAuth(usuarios, RepositorioSesionesMongo(base))
+
+
+def test_crea_un_administrador_activo(pila):
+    usuarios, _ = pila
+    assert usuarios.crear_admin_inicial("admin@ejemplo.com", CLAVE_ADMIN) is True
+    admin = usuarios.repositorio.obtener_por_email("admin@ejemplo.com")
+    assert admin.rol == Rol.ADMIN and admin.estado == Estado.ACTIVO
+
+
+def test_el_administrador_guarda_la_contrasena_como_hash(pila):
+    usuarios, _ = pila
+    usuarios.crear_admin_inicial("admin@ejemplo.com", CLAVE_ADMIN)
+    admin = usuarios.repositorio.obtener_por_email("admin@ejemplo.com")
+    assert CLAVE_ADMIN not in admin.password_hash
+
+
+def test_el_administrador_puede_iniciar_sesion_y_listar(pila):
+    usuarios, auth = pila
+    usuarios.crear_admin_inicial("admin@ejemplo.com", CLAVE_ADMIN)
+    usuarios.registrar("ana@ejemplo.com", "clave-segura-1")
+    _, admin = auth.login("admin@ejemplo.com", CLAVE_ADMIN)
+    assert len(usuarios.listar(admin)) == 2
+
+
+def test_es_idempotente_y_no_duplica_al_reiniciar(pila):
+    usuarios, _ = pila
+    assert usuarios.crear_admin_inicial("admin@ejemplo.com", CLAVE_ADMIN) is True
+    assert usuarios.crear_admin_inicial("admin@ejemplo.com", CLAVE_ADMIN) is False
+    assert len(usuarios.repositorio.listar()) == 1
+
+
+def test_no_toma_el_control_de_una_cuenta_ya_registrada(pila):
+    usuarios, auth = pila
+    usuarios.registrar("admin@ejemplo.com", "clave-de-otra-persona")
+    assert usuarios.crear_admin_inicial("admin@ejemplo.com", CLAVE_ADMIN) is False
+    cuenta = usuarios.repositorio.obtener_por_email("admin@ejemplo.com")
+    assert cuenta.rol == Rol.USUARIO
+    with pytest.raises(CredencialesInvalidas):
+        auth.login("admin@ejemplo.com", CLAVE_ADMIN)
+
+
+def test_rechaza_una_contrasena_de_administrador_demasiado_corta(pila):
+    usuarios, _ = pila
+    with pytest.raises(DatosInvalidos):
+        usuarios.crear_admin_inicial("admin@ejemplo.com", "corta")
+    assert usuarios.repositorio.listar() == []
+
+
+def test_un_usuario_registrado_normalmente_nunca_es_administrador(pila):
+    usuarios, _ = pila
+    ana = usuarios.registrar("ana@ejemplo.com", "clave-segura-1")
+    assert ana.rol == Rol.USUARIO
+    with pytest.raises(NoAutorizado):
+        usuarios.listar(ana)
