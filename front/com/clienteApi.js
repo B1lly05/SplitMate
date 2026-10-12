@@ -51,3 +51,9 @@ export const iniciarSesion = (email, password) =>
 export const cerrarSesion = () => peticion("POST", "/auth/logout");
 
 export const sesionActual = () => peticion("GET", "/auth/sesion");
+
+export const listarUsuarios = () => peticion("GET", "/usuarios");
+
+export const usuarioActivo = (id) => peticion("GET", `/usuarios/${id}/activo`);
+
+export const eliminarUsuario = (id) => peticion("DELETE", `/usuarios/${id}`);

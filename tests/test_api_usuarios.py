@@ -161,3 +161,19 @@ def test_usuario_eliminado_pierde_el_acceso(cliente, servicio):
     _entrar(cliente, "ana@ejemplo.com")
     cliente.delete(f"/usuarios/{ana.id}")
     assert cliente.get("/auth/sesion").status_code == 401
+
+def test_el_listado_incluye_a_los_eliminados_con_su_estado(cliente, servicio):
+    _crear(servicio, "admin@ejemplo.com", Rol.ADMIN)
+    luis = _crear(servicio, "luis@ejemplo.com")
+    _entrar(cliente, "admin@ejemplo.com")
+    cliente.delete(f"/usuarios/{luis.id}")
+    estados = {u["email"]: u["estado"] for u in cliente.get("/usuarios").json()}
+    assert estados["luis@ejemplo.com"] == "eliminado"
+
+
+def test_una_cuenta_eliminada_no_puede_volver_a_iniciar_sesion(cliente, servicio):
+    ana = _crear(servicio, "ana@ejemplo.com")
+    _entrar(cliente, "ana@ejemplo.com")
+    cliente.delete(f"/usuarios/{ana.id}")
+    r = cliente.post("/auth/login", json={"email": "ana@ejemplo.com", "password": CLAVE})
+    assert r.status_code == 403
