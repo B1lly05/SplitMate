@@ -1,16 +1,20 @@
 <!doctype html>
 <html lang="es">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SplitMate</title>
   <link rel="stylesheet" href="/front/gui/estilos.css">
 </head>
+
 <body>
   <main>
     <h1>SplitMate</h1>
     <p class="lema">Reparte gastos con tus amigos.</p>
-    <noscript><p class="mensaje error">Esta aplicación necesita JavaScript.</p></noscript>
+    <noscript>
+      <p class="mensaje error">Esta aplicación necesita JavaScript.</p>
+    </noscript>
 
     <section id="pantalla-login" hidden>
       <h2>Iniciar sesión</h2>
@@ -45,13 +49,38 @@
     <section id="pantalla-cuenta" hidden>
       <h2>Tu cuenta</h2>
       <dl>
-        <dt>Email</dt><dd id="cuenta-email"></dd>
-        <dt>Rol</dt><dd id="cuenta-rol"></dd>
-        <dt>Estado</dt><dd id="cuenta-estado"></dd>
+        <dt>Email</dt>
+        <dd id="cuenta-email"></dd>
+        <dt>Rol</dt>
+        <dd id="cuenta-rol"></dd>
+        <dt>Estado</dt>
+        <dd id="cuenta-estado"></dd>
       </dl>
-      <button type="button" id="boton-logout">Cerrar sesión</button>
-    </section>
+      <p id="mensaje-cuenta" class="mensaje" role="alert"></p>
+      <div class="acciones">
+        <button type="button" id="boton-logout">Cerrar sesión</button>
+        <button type="button" id="boton-eliminar-cuenta" class="peligro">Eliminar mi cuenta</button>
+      </div>
+
+      <section id="panel-admin" hidden>
+        <h2>Administración de usuarios</h2>
+        <div class="tabla-contenedor">
+          <table>
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Rol</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-usuarios-cuerpo"></tbody>
+          </table>
+        </div>
+        <p id="mensaje-admin" class="mensaje" role="alert"></p>
+      </section>
   </main>
   <script type="module" src="/front/controlador/controlador.js"></script>
 </body>
+
 </html>
