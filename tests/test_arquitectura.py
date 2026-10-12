@@ -15,7 +15,7 @@ def _importaciones_python(archivo):
 
 
 def test_la_logica_no_depende_de_la_api_ni_de_los_datos_ni_del_framework():
-    prohibidos = ("fastapi", "starlette", "back.api", "back.datos")
+    prohibidos = ("fastapi", "starlette", "pymongo", "back.api", "back.datos")
     for archivo in _archivos("back/logica", ".py"):
         for modulo in _importaciones_python(archivo):
             assert not modulo.startswith(prohibidos), f"{archivo.name} importa {modulo}"

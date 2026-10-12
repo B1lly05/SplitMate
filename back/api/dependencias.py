@@ -1,37 +1,49 @@
-import os
+import logging
 from datetime import timedelta
+from functools import lru_cache
 
 from fastapi import Cookie, Depends
 
+from back import config
 from back.datos.memoria import RepositorioMemoria
+from back.datos.mongo import crear_repositorios_mongo
 from back.datos.sesiones_memoria import RepositorioSesionesMemoria
 from back.logica.auth import ServicioAuth
 from back.logica.modelos import Usuario
 from back.logica.servicio import ServicioUsuarios
 
+log = logging.getLogger("splitmate")
 
-def _activado(nombre: str) -> bool:
-    return os.getenv(nombre, "false").strip().lower() in ("1", "true", "si", "sí")
-
-
-# TEMPORAL hasta el Hito 4 (confirmación por correo)
-CONFIRMAR_AUTOMATICAMENTE = _activado("CONFIRMAR_AUTOMATICAMENTE")
-COOKIE_SEGURA = _activado("COOKIE_SEGURA")  # true en producción (https)
+COOKIE_SEGURA = config.COOKIE_SEGURA
 NOMBRE_COOKIE = "sesion"
 DURACION_SESION = timedelta(hours=8)
 
-# Aquí se montan las piezas. En el Hito 3 se cambiarán los repositorios en
-# memoria por los de base de datos sin tocar la lógica.
-_servicio = ServicioUsuarios(RepositorioMemoria(), CONFIRMAR_AUTOMATICAMENTE)
-_auth = ServicioAuth(_servicio, RepositorioSesionesMemoria(), DURACION_SESION)
+
+@lru_cache
+def _componentes():
+    """Ensambla las piezas. Es el único sitio que decide qué repositorios se usan:
+    cambiar de memoria a base de datos no toca la capa de lógica."""
+    if config.MONGODB_URI:
+        usuarios, sesiones = crear_repositorios_mongo(config.MONGODB_URI, config.MONGODB_DB)
+        log.info("Usando MongoDB (base de datos '%s')", config.MONGODB_DB)
+    else:
+        usuarios, sesiones = RepositorioMemoria(), RepositorioSesionesMemoria()
+        log.warning("MONGODB_URI no definida: usando memoria (los datos no se conservan)")
+    servicio = ServicioUsuarios(usuarios, config.CONFIRMAR_AUTOMATICAMENTE)
+    return servicio, ServicioAuth(servicio, sesiones, DURACION_SESION)
+
+
+def preparar() -> None:
+    """Se llama al arrancar: si la base de datos falla, la aplicación no arranca."""
+    _componentes()
 
 
 def get_servicio() -> ServicioUsuarios:
-    return _servicio
+    return _componentes()[0]
 
 
 def get_auth() -> ServicioAuth:
-    return _auth
+    return _componentes()[1]
 
 
 def usuario_de_sesion(
