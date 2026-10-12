@@ -18,8 +18,9 @@ LONGITUD_MINIMA_PASSWORD = 8
 
 
 class ServicioUsuarios:
-    def __init__(self, repositorio: RepositorioUsuarios,
-                 confirmar_automaticamente: bool = False):
+    def __init__(
+        self, repositorio: RepositorioUsuarios, confirmar_automaticamente: bool = False
+    ):
         self.repositorio = repositorio
         # TEMPORAL: mientras no exista la confirmación por correo (Hito 4)
         self.confirmar_automaticamente = confirmar_automaticamente
@@ -28,8 +29,9 @@ class ServicioUsuarios:
         if solicitante.rol != Rol.ADMIN:
             raise NoAutorizado("Solo el administrador puede hacer esta operación")
 
-    def alta(self, email: str, rol: Rol = Rol.USUARIO,
-             password_hash: Optional[str] = None) -> Usuario:
+    def alta(
+        self, email: str, rol: Rol = Rol.USUARIO, password_hash: Optional[str] = None
+    ) -> Usuario:
         email = email.strip().lower()
         if not PATRON_EMAIL.match(email):
             raise DatosInvalidos("El email no tiene un formato válido")
@@ -51,6 +53,17 @@ class ServicioUsuarios:
         if self.repositorio.obtener_por_email(email_limpio):
             raise EmailDuplicado("Ya existe un usuario con ese email")
         return self.alta(email_limpio, rol, seguridad.hashear(password))
+
+    def crear_admin_inicial(self, email: str, password: str) -> bool:
+        """Crea el primer administrador (activo) si todavía no existe ese email.
+        Nunca modifica una cuenta existente, así que no sirve para tomar el control de
+        una cuenta ya registrada. Devuelve True si lo ha creado."""
+        if self.repositorio.obtener_por_email(email.strip().lower()):
+            return False
+        admin = self.registrar(email, password, Rol.ADMIN)
+        admin.estado = Estado.ACTIVO
+        self.repositorio.actualizar(admin)
+        return True
 
     def listar(self, solicitante: Usuario) -> list[Usuario]:
         self._exigir_admin(solicitante)
@@ -83,7 +96,9 @@ class ServicioUsuarios:
         if usuario.estado == Estado.ELIMINADO:
             raise CuentaNoDisponible("La cuenta ha sido eliminada")
         if usuario.estado == Estado.PENDIENTE:
-            raise CuentaNoDisponible("Debes confirmar tu correo antes de iniciar sesión")
+            raise CuentaNoDisponible(
+                "Debes confirmar tu correo antes de iniciar sesión"
+            )
         return usuario
 
     def identificar(self, id_usuario) -> Usuario:
