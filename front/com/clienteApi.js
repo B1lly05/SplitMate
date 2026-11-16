@@ -11,6 +11,9 @@ export class ErrorApi extends Error {
 function mensajeDeError(datos, estado) {
   if (datos && datos.error) return datos.error;
   if (estado === 422) return "Faltan datos o no son válidos.";
+  if (estado >= 500) {
+    return "El servidor no está disponible ahora mismo. Inténtalo de nuevo en unos segundos.";
+  }
   return "Ha ocurrido un error inesperado.";
 }
 
