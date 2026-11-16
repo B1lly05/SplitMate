@@ -54,7 +54,7 @@ async function alRegistrar(email, password) {
     vista.limpiarContrasenas();
     vista.mostrar("login");
     const texto = usuario.estado === "pendiente"
-      ? "Cuenta creada. Confirma tu correo antes de iniciar sesión."
+      ? "Cuenta creada. Te hemos enviado un correo para confirmarla (revisa también la carpeta de spam)."
       : "Cuenta creada. Ya puedes iniciar sesión.";
     vista.mostrarMensaje("login", texto, "ok");
   } catch (error) {
@@ -75,6 +75,32 @@ async function alCerrarSesion() {
     vista.mostrarMensaje("login", error.message);
   } finally {
     vista.ocupado(false);
+  }
+}
+
+async function alReenviarConfirmacion(email) {
+  if (!email.trim()) {
+    vista.mostrarMensaje("login", "Escribe tu email en el formulario y pulsa de nuevo «Reenviar».");
+    return;
+  }
+  vista.ocupado(true);
+  try {
+    const respuesta = await api.reenviarConfirmacion(email);
+    vista.mostrarMensaje("login", respuesta.mensaje, "ok");
+  } catch (error) {
+    vista.mostrarMensaje("login", error.message);
+  } finally {
+    vista.ocupado(false);
+  }
+}
+
+// Confirma la cuenta con el token del enlace del correo. Devuelve el aviso a mostrar.
+async function confirmarCuenta(token) {
+  try {
+    await api.confirmarCuenta(token);
+    return { texto: "Cuenta confirmada. Ya puedes iniciar sesión.", tipo: "ok" };
+  } catch (error) {
+    return { texto: error.message, tipo: "error" };
   }
 }
 
@@ -126,11 +152,13 @@ async function alEliminarMiCuenta() {
 }
 
 async function iniciar() {
-  const codigoError = vista.leerErrorDeUrl(); // se lee antes de pintar nada
+  const codigoError = vista.leerErrorDeUrl(); // se leen antes de pintar nada
+  const tokenConfirmacion = vista.leerTokenConfirmacion();
   vista.enlazar({
     alIniciarSesion, alRegistrar, alCerrarSesion,
-    alComprobarActivo, alEliminarUsuario, alEliminarMiCuenta,
+    alComprobarActivo, alEliminarUsuario, alEliminarMiCuenta, alReenviarConfirmacion,
   });
+  const aviso = tokenConfirmacion !== null ? await confirmarCuenta(tokenConfirmacion) : null;
   try {
     // Mantiene la sesión entre recargas: si la cookie sigue siendo válida, entra directo
     const usuario = await api.sesionActual();
@@ -138,7 +166,9 @@ async function iniciar() {
   } catch (error) {
     // Sin sesión válida se redirige a la pantalla de login
     vista.mostrar("login");
-    if (codigoError !== null) {
+    if (aviso !== null) {
+      vista.mostrarMensaje("login", aviso.texto, aviso.tipo);
+    } else if (codigoError !== null) {
       vista.mostrarMensaje("login", MENSAJES_OAUTH[codigoError] ?? MENSAJE_OAUTH_GENERICO);
     } else if (error.estado !== 401) {
       vista.mostrarMensaje("login", error.message);
@@ -146,4 +176,4 @@ async function iniciar() {
   }
 }
 
-iniciar();
+iniciar();

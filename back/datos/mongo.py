@@ -10,6 +10,7 @@ from back.logica.errores import EmailDuplicado
 from back.logica.modelos import Estado, Rol, Usuario
 from back.logica.repositorio import RepositorioUsuarios
 from back.logica.sesiones import RepositorioSesiones, Sesion
+from back.logica.tokens import RepositorioTokens, TokenConfirmacion
 
 
 class RepositorioUsuariosMongo(RepositorioUsuarios):
@@ -109,7 +110,48 @@ class RepositorioSesionesMongo(RepositorioSesiones):
         self._sesiones.delete_one({"_id": _clave(token)})
 
 
+def _con_zona(fecha):
+    if fecha.tzinfo is None:  # MongoDB devuelve fechas sin zona (UTC)
+        return fecha.replace(tzinfo=timezone.utc)
+    return fecha
+
+
+class RepositorioTokensMongo(RepositorioTokens):
+    def __init__(self, base):
+        self._tokens = base["tokens_confirmacion"]
+        # MongoDB borra solo los tokens caducados
+        self._tokens.create_index("expira_en", expireAfterSeconds=0)
+        self._tokens.create_index("id_usuario")
+
+    @staticmethod
+    def _a_token(doc) -> Optional[TokenConfirmacion]:
+        if doc is None:
+            return None
+        return TokenConfirmacion(doc["_id"], doc["id_usuario"],
+                                 _con_zona(doc["creado_en"]), _con_zona(doc["expira_en"]))
+
+    def guardar(self, token: TokenConfirmacion) -> None:
+        self._tokens.replace_one(
+            {"_id": token.clave},
+            {"_id": token.clave, "id_usuario": token.id_usuario,
+             "creado_en": token.creado_en, "expira_en": token.expira_en},
+            upsert=True,
+        )
+
+    def obtener(self, clave: str) -> Optional[TokenConfirmacion]:
+        return self._a_token(self._tokens.find_one({"_id": clave}))
+
+    def obtener_de_usuario(self, id_usuario: int) -> Optional[TokenConfirmacion]:
+        return self._a_token(self._tokens.find_one({"id_usuario": id_usuario}))
+
+    def eliminar(self, clave: str) -> None:
+        self._tokens.delete_one({"_id": clave})
+
+    def eliminar_de_usuario(self, id_usuario: int) -> None:
+        self._tokens.delete_many({"id_usuario": id_usuario})
+
+
 def crear_repositorios_mongo(uri: str, nombre_db: str):
     cliente = MongoClient(uri, serverSelectionTimeoutMS=5000)
     base = cliente[nombre_db]
-    return RepositorioUsuariosMongo(base), RepositorioSesionesMongo(base)
+    return RepositorioUsuariosMongo(base), RepositorioSesionesMongo(base), RepositorioTokensMongo(base)

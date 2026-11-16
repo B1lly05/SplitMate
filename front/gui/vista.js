@@ -91,7 +91,7 @@ function limpiarPanel() {
 
 export function enlazar({
   alIniciarSesion, alRegistrar, alCerrarSesion,
-  alComprobarActivo, alEliminarUsuario, alEliminarMiCuenta,
+  alComprobarActivo, alEliminarUsuario, alEliminarMiCuenta, alReenviarConfirmacion,
 }) {
   $("form-login").addEventListener("submit", (evento) => {
     evento.preventDefault();
@@ -119,6 +119,11 @@ export function enlazar({
     }
   });
 
+  $("reenviar-confirmacion").addEventListener("click", (evento) => {
+    evento.preventDefault();
+    alReenviarConfirmacion($("login-email").value);
+  });
+
   $("ir-registro").addEventListener("click", (evento) => {
     evento.preventDefault();
     mostrar("registro");
@@ -134,13 +139,20 @@ export function limpiarContrasenas() {
   $("registro-password").value = "";
 }
 
-// Si el servidor nos devuelve a la portada con ?error=<código> (fallo de OAuth), lo lee y
-// limpia la URL para que el aviso no reaparezca al recargar. Devuelve el código o null.
-export function leerErrorDeUrl() {
-  const parametros = new URLSearchParams(window.location.search);
-  const codigo = parametros.get("error");
-  if (codigo !== null) {
-    window.history.replaceState(null, "", window.location.pathname);
+// Lee un parámetro de la URL (?error=..., ?confirmar=...) y lo quita de la barra de
+// direcciones para que no reaparezca al recargar ni se quede el token a la vista.
+function leerYQuitarParametro(nombre) {
+  const url = new URL(window.location.href);
+  const valor = url.searchParams.get(nombre);
+  if (valor !== null) {
+    url.searchParams.delete(nombre);
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
   }
-  return codigo;
+  return valor;
 }
+
+// Código de error con el que el servidor nos devuelve tras un fallo de OAuth, o null.
+export const leerErrorDeUrl = () => leerYQuitarParametro("error");
+
+// Token del enlace del correo de confirmación, o null.
+export const leerTokenConfirmacion = () => leerYQuitarParametro("confirmar");

@@ -57,3 +57,9 @@ export const listarUsuarios = () => peticion("GET", "/usuarios");
 export const usuarioActivo = (id) => peticion("GET", `/usuarios/${id}/activo`);
 
 export const eliminarUsuario = (id) => peticion("DELETE", `/usuarios/${id}`);
+
+export const confirmarCuenta = (token) =>
+  peticion("POST", "/auth/confirmar", { token });
+
+export const reenviarConfirmacion = (email) =>
+  peticion("POST", "/auth/reenviar-confirmacion", { email });

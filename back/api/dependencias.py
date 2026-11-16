@@ -8,7 +8,12 @@ from back import config
 from back.datos.memoria import RepositorioMemoria
 from back.datos.mongo import crear_repositorios_mongo
 from back.datos.sesiones_memoria import RepositorioSesionesMemoria
+from back.datos.tokens_memoria import RepositorioTokensMemoria
+from back.externos.brevo import EnviadorBrevo
+from back.externos.correo_simulado import EnviadorSimulado
 from back.externos.github import ProveedorGitHub
+from back.logica.confirmacion import ServicioConfirmacion
+from back.logica.correo import EnviadorCorreo
 from back.logica.auth import ServicioAuth
 from back.logica.modelos import Usuario
 from back.logica.servicio import ServicioUsuarios
@@ -21,27 +26,37 @@ NOMBRE_COOKIE = "sesion"
 DURACION_SESION = timedelta(hours=8)
 
 
+def _crear_enviador() -> EnviadorCorreo:
+    if config.BREVO_API_KEY and config.MAIL_REMITENTE:
+        log.info("Correo: usando Brevo")
+        return EnviadorBrevo(config.BREVO_API_KEY, config.MAIL_REMITENTE, config.MAIL_NOMBRE)
+    log.warning("Brevo no configurado: los correos de confirmación no se enviarán")
+    return EnviadorSimulado(avisar=True)
+
+
 @lru_cache
 def _componentes():
     """Ensambla las piezas. Es el único sitio que decide qué repositorios se usan:
     cambiar de memoria a base de datos no toca la capa de lógica."""
     if config.MONGODB_URI:
-        usuarios, sesiones = crear_repositorios_mongo(
+        usuarios, sesiones, tokens = crear_repositorios_mongo(
             config.MONGODB_URI, config.MONGODB_DB
         )
         log.info("Usando MongoDB (base de datos '%s')", config.MONGODB_DB)
     else:
         usuarios, sesiones = RepositorioMemoria(), RepositorioSesionesMemoria()
+        tokens = RepositorioTokensMemoria()
         log.warning(
             "MONGODB_URI no definida: usando memoria (los datos no se conservan)"
         )
     servicio = ServicioUsuarios(usuarios, config.CONFIRMAR_AUTOMATICAMENTE)
-    return servicio, ServicioAuth(servicio, sesiones, DURACION_SESION)
+    confirmacion = ServicioConfirmacion(servicio, tokens, _crear_enviador(), config.BASE_URL)
+    return servicio, ServicioAuth(servicio, sesiones, DURACION_SESION), confirmacion
 
 
 def preparar() -> None:
     """Se llama al arrancar: si la base de datos falla, la aplicación no arranca."""
-    servicio, _ = _componentes()
+    servicio = _componentes()[0]
     if config.ADMIN_EMAIL and config.ADMIN_PASSWORD:
         try:
             if servicio.crear_admin_inicial(config.ADMIN_EMAIL, config.ADMIN_PASSWORD):
@@ -58,6 +73,10 @@ def get_servicio() -> ServicioUsuarios:
 
 def get_auth() -> ServicioAuth:
     return _componentes()[1]
+
+
+def get_confirmacion() -> ServicioConfirmacion:
+    return _componentes()[2]
 
 
 def usuario_de_sesion(
