@@ -66,3 +66,20 @@ export const confirmarCuenta = (token) =>
 
 export const reenviarConfirmacion = (email) =>
   peticion("POST", "/auth/reenviar-confirmacion", { email });
+
+export const listarGrupos = () => peticion("GET", "/grupos");
+
+export const crearGrupo = (nombre) => peticion("POST", "/grupos", { nombre });
+
+export const obtenerGrupo = (id) => peticion("GET", `/grupos/${id}`);
+
+export const anadirMiembro = (id, email) =>
+  peticion("POST", `/grupos/${id}/miembros`, { email });
+
+export const crearGasto = (id, gasto) => peticion("POST", `/grupos/${id}/gastos`, gasto);
+
+export const eliminarGasto = (id, gastoId) =>
+  peticion("DELETE", `/grupos/${id}/gastos/${gastoId}`);
+
+export const crearLiquidacion = (id, pago) =>
+  peticion("POST", `/grupos/${id}/liquidaciones`, pago);

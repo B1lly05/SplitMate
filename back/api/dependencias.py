@@ -7,6 +7,7 @@ from fastapi import Cookie, Depends, Response
 from back import config
 from back.datos.memoria import RepositorioMemoria
 from back.datos.mongo import crear_repositorios_mongo
+from back.datos.grupos_memoria import RepositorioGruposMemoria
 from back.datos.sesiones_memoria import RepositorioSesionesMemoria
 from back.datos.tokens_memoria import RepositorioTokensMemoria
 from back.externos.brevo import EnviadorBrevo
@@ -14,6 +15,7 @@ from back.externos.correo_simulado import EnviadorSimulado
 from back.externos.github import ProveedorGitHub
 from back.logica.confirmacion import ServicioConfirmacion
 from back.logica.correo import EnviadorCorreo
+from back.logica.grupos import ServicioGrupos
 from back.logica.auth import ServicioAuth
 from back.logica.modelos import Usuario
 from back.logica.servicio import ServicioUsuarios
@@ -39,19 +41,21 @@ def _componentes():
     """Ensambla las piezas. Es el único sitio que decide qué repositorios se usan:
     cambiar de memoria a base de datos no toca la capa de lógica."""
     if config.MONGODB_URI:
-        usuarios, sesiones, tokens = crear_repositorios_mongo(
+        usuarios, sesiones, tokens, grupos = crear_repositorios_mongo(
             config.MONGODB_URI, config.MONGODB_DB
         )
         log.info("Usando MongoDB (base de datos '%s')", config.MONGODB_DB)
     else:
         usuarios, sesiones = RepositorioMemoria(), RepositorioSesionesMemoria()
-        tokens = RepositorioTokensMemoria()
+        tokens, grupos = RepositorioTokensMemoria(), RepositorioGruposMemoria()
         log.warning(
             "MONGODB_URI no definida: usando memoria (los datos no se conservan)"
         )
     servicio = ServicioUsuarios(usuarios, config.CONFIRMAR_AUTOMATICAMENTE)
     confirmacion = ServicioConfirmacion(servicio, tokens, _crear_enviador(), config.BASE_URL)
-    return servicio, ServicioAuth(servicio, sesiones, DURACION_SESION), confirmacion
+    servicio_grupos = ServicioGrupos(grupos, servicio)
+    return (servicio, ServicioAuth(servicio, sesiones, DURACION_SESION), confirmacion,
+            servicio_grupos)
 
 
 def preparar() -> None:
@@ -77,6 +81,10 @@ def get_auth() -> ServicioAuth:
 
 def get_confirmacion() -> ServicioConfirmacion:
     return _componentes()[2]
+
+
+def get_grupos() -> ServicioGrupos:
+    return _componentes()[3]
 
 
 def usuario_de_sesion(

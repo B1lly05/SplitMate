@@ -4,89 +4,222 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0b0f17">
   <title>SplitMate</title>
   <link rel="stylesheet" href="/front/gui/estilos.css">
 </head>
 
 <body>
+  <noscript>
+    <p class="mensaje error">Esta aplicación necesita JavaScript.</p>
+  </noscript>
+
+  <header id="barra" class="barra" hidden>
+    <div class="barra-interior">
+      <a class="marca" href="#" id="ir-inicio">
+        <span class="marca-logo">S</span><span class="marca-texto">SplitMate</span>
+      </a>
+      <nav class="nav" aria-label="Principal">
+        <button type="button" class="nav-boton" data-nav="grupos">Grupos</button>
+        <button type="button" class="nav-boton" data-nav="admin" id="nav-admin" hidden>Administración</button>
+        <button type="button" class="nav-boton" data-nav="cuenta">Cuenta</button>
+      </nav>
+      <span class="avatar" id="barra-avatar" aria-hidden="true"></span>
+    </div>
+  </header>
+
   <main>
-    <h1>SplitMate</h1>
-    <p class="lema">Reparte gastos con tus amigos.</p>
-    <noscript>
-      <p class="mensaje error">Esta aplicación necesita JavaScript.</p>
-    </noscript>
-
-    <section id="pantalla-login" hidden>
-      <h2>Iniciar sesión</h2>
-      <form id="form-login">
-        <label>Email
-          <input type="email" id="login-email" autocomplete="username" required>
-        </label>
-        <label>Contraseña
-          <input type="password" id="login-password" autocomplete="current-password" required>
-        </label>
-        <button type="submit">Entrar</button>
-      </form>
-      <p class="separador"><span>o</span></p>
-      <a class="boton-externo" href="/auth/github/login">Continuar con GitHub</a>
-      <p id="mensaje-login" class="mensaje" role="alert"></p>
-      <p>¿No te llegó el correo de confirmación? <a href="#" id="reenviar-confirmacion">Reenviar</a></p>
-      <p>¿No tienes cuenta? <a href="#" id="ir-registro">Regístrate</a></p>
+    <!-- ===== Acceso ===== -->
+    <section id="pantalla-login" class="auth" hidden>
+      <div class="auth-tarjeta">
+        <div class="auth-marca"><span class="marca-logo grande">S</span></div>
+        <h1>Bienvenido a SplitMate</h1>
+        <p class="sub">Reparte gastos con tus amigos sin discusiones.</p>
+        <form id="form-login">
+          <label>Email
+            <input type="email" id="login-email" autocomplete="username" required>
+          </label>
+          <label>Contraseña
+            <input type="password" id="login-password" autocomplete="current-password" required>
+          </label>
+          <button type="submit" class="primario ancho">Entrar</button>
+        </form>
+        <p class="separador"><span>o</span></p>
+        <a class="boton-externo" href="/auth/github/login">Continuar con GitHub</a>
+        <p id="mensaje-login" class="mensaje" role="alert"></p>
+        <p class="pie">¿No te llegó el correo de confirmación? <a href="#" id="reenviar-confirmacion">Reenviar</a></p>
+        <p class="pie">¿No tienes cuenta? <a href="#" id="ir-registro">Regístrate</a></p>
+      </div>
     </section>
 
-    <section id="pantalla-registro" hidden>
-      <h2>Crear cuenta</h2>
-      <form id="form-registro">
-        <label>Email
-          <input type="email" id="registro-email" autocomplete="username" required>
-        </label>
-        <label>Contraseña
-          <input type="password" id="registro-password" autocomplete="new-password" required>
-        </label>
-        <button type="submit">Registrarme</button>
-      </form>
-      <p class="separador"><span>o</span></p>
-      <a class="boton-externo" href="/auth/github/login">Continuar con GitHub</a>
-      <p id="mensaje-registro" class="mensaje" role="alert"></p>
-      <p>¿Ya tienes cuenta? <a href="#" id="ir-login">Inicia sesión</a></p>
+    <section id="pantalla-registro" class="auth" hidden>
+      <div class="auth-tarjeta">
+        <div class="auth-marca"><span class="marca-logo grande">S</span></div>
+        <h1>Crea tu cuenta</h1>
+        <p class="sub">Te enviaremos un correo para confirmarla.</p>
+        <form id="form-registro">
+          <label>Email
+            <input type="email" id="registro-email" autocomplete="username" required>
+          </label>
+          <label>Contraseña
+            <input type="password" id="registro-password" autocomplete="new-password" required>
+          </label>
+          <button type="submit" class="primario ancho">Registrarme</button>
+        </form>
+        <p class="separador"><span>o</span></p>
+        <a class="boton-externo" href="/auth/github/login">Continuar con GitHub</a>
+        <p id="mensaje-registro" class="mensaje" role="alert"></p>
+        <p class="pie">¿Ya tienes cuenta? <a href="#" id="ir-login">Inicia sesión</a></p>
+      </div>
     </section>
 
-    <section id="pantalla-cuenta" hidden>
-      <h2>Tu cuenta</h2>
-      <dl>
-        <dt>Email</dt>
-        <dd id="cuenta-email"></dd>
-        <dt>Rol</dt>
-        <dd id="cuenta-rol"></dd>
-        <dt>Estado</dt>
-        <dd id="cuenta-estado"></dd>
-      </dl>
+    <!-- ===== Mis grupos ===== -->
+    <section id="pantalla-grupos" class="vista" hidden>
+      <div class="cabecera-vista">
+        <h1>Tus grupos</h1>
+        <p class="sub">Crea un grupo y empieza a repartir gastos.</p>
+      </div>
+      <form id="form-grupo" class="fila-form">
+        <input type="text" id="grupo-nombre" maxlength="60" placeholder="Nombre del grupo, p. ej. Viaje a Lisboa"
+          aria-label="Nombre del grupo" required>
+        <button type="submit" class="primario">Crear grupo</button>
+      </form>
+      <p id="mensaje-grupos" class="mensaje" role="alert"></p>
+      <ul id="lista-grupos" class="tarjetas"></ul>
+      <p id="vacio-grupos" class="vacio" hidden>Todavía no estás en ningún grupo. Crea el primero arriba.</p>
+    </section>
+
+    <!-- ===== Un grupo ===== -->
+    <section id="pantalla-grupo" class="vista" hidden>
+      <button type="button" class="enlace" id="volver-grupos">← Todos los grupos</button>
+      <div class="cabecera-vista">
+        <h1 id="grupo-titulo"></h1>
+        <div id="grupo-chips" class="chips"></div>
+      </div>
+
+      <div class="resumen">
+        <div class="dato">
+          <span class="dato-etiqueta">Tu balance</span>
+          <strong id="resumen-balance" class="dato-valor"></strong>
+          <span id="resumen-balance-texto" class="dato-sub"></span>
+        </div>
+        <div class="dato">
+          <span class="dato-etiqueta">Gasto total</span>
+          <strong id="resumen-total" class="dato-valor"></strong>
+          <span id="resumen-gastos-n" class="dato-sub"></span>
+        </div>
+      </div>
+
+      <p id="mensaje-grupo" class="mensaje" role="alert"></p>
+
+      <div class="pestanas" role="tablist">
+        <button type="button" role="tab" class="pestana activa" data-pestana="gastos" aria-selected="true">Gastos</button>
+        <button type="button" role="tab" class="pestana" data-pestana="saldos" aria-selected="false">Saldos</button>
+        <button type="button" role="tab" class="pestana" data-pestana="miembros" aria-selected="false">Miembros</button>
+      </div>
+
+      <div data-panel="gastos">
+        <div class="barra-acciones">
+          <button type="button" class="primario" id="boton-nuevo-gasto">+ Añadir gasto</button>
+        </div>
+        <ul id="lista-gastos" class="lista"></ul>
+        <p id="vacio-gastos" class="vacio" hidden>Aún no hay gastos. Añade el primero.</p>
+      </div>
+
+      <div data-panel="saldos" hidden>
+        <h2>Balances</h2>
+        <ul id="lista-saldos" class="lista"></ul>
+        <h2>Para saldar cuentas</h2>
+        <ul id="lista-transferencias" class="lista"></ul>
+        <p id="vacio-transferencias" class="vacio" hidden>Todo está saldado. No se debe nada.</p>
+        <h2>Pagos registrados</h2>
+        <ul id="lista-liquidaciones" class="lista"></ul>
+        <p id="vacio-liquidaciones" class="vacio" hidden>Todavía no se ha registrado ningún pago.</p>
+      </div>
+
+      <div data-panel="miembros" hidden>
+        <ul id="lista-miembros" class="lista"></ul>
+        <h2>Añadir a alguien</h2>
+        <form id="form-miembro" class="fila-form">
+          <input type="email" id="miembro-email" placeholder="email@ejemplo.com" aria-label="Email de la persona" required>
+          <button type="submit" class="primario">Añadir</button>
+        </form>
+        <p class="nota">La persona ya debe estar registrada y tener la cuenta activa.</p>
+      </div>
+    </section>
+
+    <!-- ===== Cuenta ===== -->
+    <section id="pantalla-cuenta" class="vista" hidden>
+      <div class="cabecera-vista">
+        <h1>Tu cuenta</h1>
+      </div>
+      <div class="tarjeta-cuenta">
+        <span class="avatar grande" id="cuenta-avatar" aria-hidden="true"></span>
+        <div>
+          <strong id="cuenta-email"></strong>
+          <div class="insignias">
+            <span class="insignia" id="cuenta-rol"></span>
+            <span class="insignia" id="cuenta-estado"></span>
+          </div>
+        </div>
+      </div>
       <p id="mensaje-cuenta" class="mensaje" role="alert"></p>
       <div class="acciones">
         <button type="button" id="boton-logout">Cerrar sesión</button>
         <button type="button" id="boton-eliminar-cuenta" class="peligro">Eliminar mi cuenta</button>
       </div>
+    </section>
 
-      <section id="panel-admin" hidden>
-        <h2>Administración de usuarios</h2>
-        <div class="tabla-contenedor">
-          <table>
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>Rol</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody id="tabla-usuarios-cuerpo"></tbody>
-          </table>
-        </div>
-        <p id="mensaje-admin" class="mensaje" role="alert"></p>
-      </section>
+    <!-- ===== Administración ===== -->
+    <section id="pantalla-admin" class="vista" hidden>
+      <div class="cabecera-vista">
+        <h1>Administración</h1>
+        <p class="sub">Usuarios registrados en la aplicación.</p>
+      </div>
+      <div class="tabla-contenedor">
+        <table>
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Rol</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-usuarios-cuerpo"></tbody>
+        </table>
+      </div>
+      <p id="mensaje-admin" class="mensaje" role="alert"></p>
     </section>
   </main>
+
+  <!-- ===== Nuevo gasto ===== -->
+  <dialog id="dialogo-gasto">
+    <form id="form-gasto">
+      <h2>Añadir gasto</h2>
+      <label>Concepto
+        <input type="text" id="gasto-concepto" maxlength="80" placeholder="Cena, taxi, alquiler…" required>
+      </label>
+      <label>Importe (€)
+        <input type="text" id="gasto-importe" inputmode="decimal" placeholder="12,50" autocomplete="off" required>
+      </label>
+      <label>Pagó
+        <select id="gasto-pagador"></select>
+      </label>
+      <fieldset>
+        <legend>Se reparte a partes iguales entre</legend>
+        <div id="gasto-participantes" class="participantes"></div>
+      </fieldset>
+      <p id="mensaje-gasto" class="mensaje" role="alert"></p>
+      <div class="acciones fin">
+        <button type="button" id="cancelar-gasto">Cancelar</button>
+        <button type="submit" class="primario">Guardar gasto</button>
+      </div>
+    </form>
+  </dialog>
+
   <script type="module" src="/front/controlador/controlador.js"></script>
 </body>
 
-</html>
+</html>

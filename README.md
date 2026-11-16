@@ -49,6 +49,8 @@ Recorrido de una petición: `GUI → controlador → com → API → lógica →
 - Roles de usuario y administrador, aplicados siempre en el servidor.
 - El administrador puede listar usuarios (email, rol, estado) y comprobar si uno está activo. Activo significa confirmado por correo o creado por OAuth, y no eliminado.
 - Un administrador puede eliminar a cualquier usuario y un usuario normal solo su propia cuenta. Una cuenta eliminada no puede volver a entrar.
+- **Grupos de gasto compartido:** cualquier usuario crea grupos y añade a otros usuarios activos por su email. Solo los miembros ven y modifican un grupo (comprobado en el servidor).
+- **Gastos y saldos:** se registra quién pagó, cuánto y entre quiénes se reparte a partes iguales. La aplicación calcula el balance de cada persona y propone el mínimo de pagos para saldar cuentas. Los pagos realizados se registran y actualizan los saldos. Los importes se guardan en céntimos enteros para evitar errores de redondeo.
 - Registro (log) de la actividad y manejo de errores con mensajes claros: toda respuesta de error tiene el formato `{"error": "mensaje"}` y los fallos internos no exponen detalles.
 
 ## Ejecutar en local
@@ -125,4 +127,6 @@ GitHub Flow: una rama por cambio, pruebas en local, pull request a `main` y CI e
 - Los registros guardan el email en los inicios de sesión fallidos.
 - `mongomock` no es idéntico a un MongoDB real.
 - No se ha implementado comunicación por WebSocket (`api-ws`): la especificación solo exige una API.
-- La funcionalidad de reparto de gastos no forma parte de este Sprint.
+- Los gastos solo se pueden repartir a partes iguales y no se pueden editar (solo borrar y volver a crear).
+- Una cuenta eliminada sigue figurando en los grupos donde estaba, para que los saldos sigan cuadrando.
+- Para añadir a alguien a un grupo basta su email: cualquier usuario con sesión puede comprobar si un correo está registrado.
