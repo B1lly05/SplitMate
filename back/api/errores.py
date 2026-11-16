@@ -7,7 +7,8 @@ from starlette.exceptions import HTTPException as HTTPExceptionStarlette
 
 from back.logica.errores import (
     CredencialesInvalidas, CuentaNoDisponible, DatosInvalidos, EmailDuplicado, ErrorDeNegocio,
-    NoAutenticado, NoAutorizado, TokenInvalido, UsuarioNoEncontrado,
+    GrupoNoEncontrado, NoAutenticado, NoAutorizado, TokenInvalido, UsuarioNoEncontrado,
+    YaEsMiembro,
 )
 
 log = logging.getLogger("splitmate.api")
@@ -15,7 +16,7 @@ log = logging.getLogger("splitmate.api")
 CODIGOS = {
     DatosInvalidos: 400, CredencialesInvalidas: 401, NoAutenticado: 401, NoAutorizado: 403,
     CuentaNoDisponible: 403, UsuarioNoEncontrado: 404, EmailDuplicado: 409,
-    TokenInvalido: 400,
+    TokenInvalido: 400, GrupoNoEncontrado: 404, YaEsMiembro: 409,
 }
 
 

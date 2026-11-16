@@ -7,8 +7,9 @@ from pymongo import MongoClient, ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
 from back.logica.errores import EmailDuplicado
-from back.logica.modelos import Estado, Rol, Usuario
+from back.logica.modelos import Estado, Gasto, Grupo, Liquidacion, Rol, Usuario
 from back.logica.repositorio import RepositorioUsuarios
+from back.logica.repositorio_grupos import RepositorioGrupos
 from back.logica.sesiones import RepositorioSesiones, Sesion
 from back.logica.tokens import RepositorioTokens, TokenConfirmacion
 
@@ -151,7 +152,87 @@ class RepositorioTokensMongo(RepositorioTokens):
         self._tokens.delete_many({"id_usuario": id_usuario})
 
 
+class RepositorioGruposMongo(RepositorioGrupos):
+    def __init__(self, base):
+        self._grupos = base["grupos"]
+        self._gastos = base["gastos"]
+        self._liquidaciones = base["liquidaciones"]
+        self._contadores = base["contadores"]
+        self._grupos.create_index("miembros")
+        self._gastos.create_index("grupo_id")
+        self._liquidaciones.create_index("grupo_id")
+
+    def _siguiente(self, nombre: str) -> int:
+        doc = self._contadores.find_one_and_update(
+            {"_id": nombre}, {"$inc": {"valor": 1}},
+            upsert=True, return_document=ReturnDocument.AFTER,
+        )
+        return doc["valor"]
+
+    @staticmethod
+    def _a_grupo(doc) -> Optional[Grupo]:
+        if doc is None:
+            return None
+        return Grupo(doc["_id"], doc["nombre"], doc["creador_id"], list(doc["miembros"]))
+
+    @staticmethod
+    def _a_gasto(doc) -> Optional[Gasto]:
+        if doc is None:
+            return None
+        return Gasto(doc["_id"], doc["grupo_id"], doc["concepto"], doc["importe"],
+                     doc["pagador_id"], list(doc["participantes"]), doc["creado_por"],
+                     doc["fecha"])
+
+    @staticmethod
+    def _a_liquidacion(doc) -> Liquidacion:
+        return Liquidacion(doc["_id"], doc["grupo_id"], doc["de_id"], doc["a_id"],
+                           doc["importe"], doc["fecha"])
+
+    def crear_grupo(self, nombre, creador_id):
+        doc = {"_id": self._siguiente("grupos"), "nombre": nombre,
+               "creador_id": creador_id, "miembros": [creador_id]}
+        self._grupos.insert_one(doc)
+        return self._a_grupo(doc)
+
+    def obtener_grupo(self, id):
+        return self._a_grupo(self._grupos.find_one({"_id": id}))
+
+    def listar_grupos_de(self, usuario_id):
+        return [self._a_grupo(d) for d in self._grupos.find({"miembros": usuario_id}).sort("_id", 1)]
+
+    def anadir_miembro(self, grupo_id, usuario_id):
+        self._grupos.update_one({"_id": grupo_id}, {"$addToSet": {"miembros": usuario_id}})
+
+    def crear_gasto(self, grupo_id, concepto, importe, pagador_id, participantes,
+                    creado_por, fecha):
+        doc = {"_id": self._siguiente("gastos"), "grupo_id": grupo_id, "concepto": concepto,
+               "importe": importe, "pagador_id": pagador_id,
+               "participantes": list(participantes), "creado_por": creado_por, "fecha": fecha}
+        self._gastos.insert_one(doc)
+        return self._a_gasto(doc)
+
+    def obtener_gasto(self, id):
+        return self._a_gasto(self._gastos.find_one({"_id": id}))
+
+    def listar_gastos(self, grupo_id):
+        return [self._a_gasto(d) for d in self._gastos.find({"grupo_id": grupo_id}).sort("_id", 1)]
+
+    def eliminar_gasto(self, id):
+        self._gastos.delete_one({"_id": id})
+
+    def crear_liquidacion(self, grupo_id, de_id, a_id, importe, fecha):
+        doc = {"_id": self._siguiente("liquidaciones"), "grupo_id": grupo_id, "de_id": de_id,
+               "a_id": a_id, "importe": importe, "fecha": fecha}
+        self._liquidaciones.insert_one(doc)
+        return self._a_liquidacion(doc)
+
+    def listar_liquidaciones(self, grupo_id):
+        return [self._a_liquidacion(d)
+                for d in self._liquidaciones.find({"grupo_id": grupo_id}).sort("_id", 1)]
+
+
 def crear_repositorios_mongo(uri: str, nombre_db: str):
     cliente = MongoClient(uri, serverSelectionTimeoutMS=5000)
     base = cliente[nombre_db]
-    return RepositorioUsuariosMongo(base), RepositorioSesionesMongo(base), RepositorioTokensMongo(base)
+    return (RepositorioUsuariosMongo(base), RepositorioSesionesMongo(base),
+            RepositorioTokensMongo(base), RepositorioGruposMongo(base))

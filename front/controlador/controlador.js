@@ -3,8 +3,10 @@
 
 import * as api from "../com/clienteApi.js";
 import * as vista from "../gui/vista.js";
+import { eurosACentimos } from "./dinero.js";
 
 let usuarioActual = null;
+let grupoActual = null; // detalle del grupo que se está viendo
 
 // Textos fijos para los códigos de error del inicio de sesión con GitHub.
 // Un código desconocido nunca se muestra tal cual: se usa el mensaje genérico.
@@ -17,35 +19,30 @@ const MENSAJES_OAUTH = {
 };
 const MENSAJE_OAUTH_GENERICO = "No se pudo iniciar sesión con GitHub.";
 
-async function cargarPanel() {
-  try {
-    const usuarios = await api.listarUsuarios();
-    vista.mostrarUsuarios(usuarios, usuarioActual.id);
-  } catch (error) {
-    vista.mostrarMensaje("admin", error.message);
-  }
-}
-
-async function entrar(usuario) {
-  usuarioActual = usuario;
-  vista.mostrarCuenta(usuario);
-  if (usuario.rol === "admin") {
-    await cargarPanel();
-  }
-}
-
-async function alIniciarSesion(email, password) {
+// Ejecuta una acción con los botones bloqueados y enseña el error en la zona indicada.
+async function conOcupado(zona, accion) {
   vista.ocupado(true);
   try {
-    const usuario = await api.iniciarSesion(email, password);
-    vista.limpiarContrasenas();
-    await entrar(usuario);
+    await accion();
   } catch (error) {
-    vista.mostrarMensaje("login", error.message);
+    vista.mostrarMensaje(zona, error.message);
   } finally {
     vista.ocupado(false);
   }
 }
+
+// ---------- sesión ----------
+async function entrar(usuario) {
+  usuarioActual = usuario;
+  vista.mostrarSesion(usuario);
+  await irAGrupos();
+}
+
+const alIniciarSesion = (email, password) => conOcupado("login", async () => {
+  const usuario = await api.iniciarSesion(email, password);
+  vista.limpiarContrasenas();
+  await entrar(usuario);
+});
 
 async function alRegistrar(email, password) {
   vista.ocupado(true);
@@ -67,6 +64,7 @@ async function alRegistrar(email, password) {
 async function alCerrarSesion() {
   vista.ocupado(true);
   usuarioActual = null;
+  grupoActual = null;
   try {
     await api.cerrarSesion();
     vista.mostrar("login");
@@ -104,6 +102,91 @@ async function confirmarCuenta(token) {
   }
 }
 
+// ---------- navegación ----------
+async function irAGrupos() {
+  vista.mostrar("grupos");
+  try {
+    vista.mostrarGrupos(await api.listarGrupos());
+  } catch (error) {
+    vista.mostrarMensaje("grupos", error.message);
+  }
+}
+
+async function cargarPanel() {
+  try {
+    vista.mostrarUsuarios(await api.listarUsuarios(), usuarioActual.id);
+  } catch (error) {
+    vista.mostrarMensaje("admin", error.message);
+  }
+}
+
+async function alNavegar(destino) {
+  if (destino === "grupos") {
+    await irAGrupos();
+  } else if (destino === "cuenta") {
+    vista.mostrarCuenta(usuarioActual);
+  } else if (destino === "admin") {
+    vista.mostrar("admin");
+    await cargarPanel();
+  }
+}
+
+// ---------- grupos ----------
+async function abrirGrupo(id, aviso) {
+  grupoActual = await api.obtenerGrupo(id);
+  vista.mostrarGrupo(grupoActual, usuarioActual.id);
+  if (aviso) vista.mostrarMensaje("grupo", aviso, "ok");
+}
+
+const alCrearGrupo = (nombre) => conOcupado("grupos", async () => {
+  const grupo = await api.crearGrupo(nombre);
+  await abrirGrupo(grupo.id, "Grupo creado. Añade a tus amigos en la pestaña Miembros.");
+});
+
+const alAbrirGrupo = (id) => conOcupado("grupos", () => abrirGrupo(id));
+
+const alAnadirMiembro = (email) => conOcupado("grupo", async () => {
+  await api.anadirMiembro(grupoActual.id, email);
+  await abrirGrupo(grupoActual.id, "Miembro añadido.");
+});
+
+function alNuevoGasto() {
+  vista.abrirDialogoGasto(grupoActual.miembros, usuarioActual.id);
+}
+
+async function alGuardarGasto({ concepto, importe, pagadorId, participantes }) {
+  const centimos = eurosACentimos(importe);
+  if (centimos === null) {
+    vista.mostrarMensaje("gasto", "Escribe un importe válido, por ejemplo 12,50.");
+    return;
+  }
+  vista.ocupado(true);
+  try {
+    await api.crearGasto(grupoActual.id, {
+      concepto, importe: centimos, pagador_id: pagadorId, participantes,
+    });
+    vista.cerrarDialogoGasto();
+    await abrirGrupo(grupoActual.id, "Gasto añadido.");
+  } catch (error) {
+    vista.mostrarMensaje("gasto", error.message); // el error se ve dentro de la ventana
+  } finally {
+    vista.ocupado(false);
+  }
+}
+
+const alEliminarGasto = (gastoId) => conOcupado("grupo", async () => {
+  if (!vista.confirmar("¿Eliminar este gasto? Los saldos se recalcularán.")) return;
+  await api.eliminarGasto(grupoActual.id, gastoId);
+  await abrirGrupo(grupoActual.id, "Gasto eliminado.");
+});
+
+const alMarcarPagado = (deId, aId, importe) => conOcupado("grupo", async () => {
+  if (!vista.confirmar("¿Confirmas que este pago ya se ha realizado?")) return;
+  await api.crearLiquidacion(grupoActual.id, { de_id: deId, a_id: aId, importe });
+  await abrirGrupo(grupoActual.id, "Pago registrado.");
+});
+
+// ---------- administración y cuenta ----------
 async function alComprobarActivo(id, email) {
   vista.ocupado(true);
   try {
@@ -142,6 +225,7 @@ async function alEliminarMiCuenta() {
       // la cuenta ya está eliminada: si falla el cierre, la sesión deja de valer igualmente
     }
     usuarioActual = null;
+    grupoActual = null;
     vista.mostrar("login");
     vista.mostrarMensaje("login", "Tu cuenta ha sido eliminada.", "ok");
   } catch (error) {
@@ -151,12 +235,14 @@ async function alEliminarMiCuenta() {
   }
 }
 
+// ---------- arranque ----------
 async function iniciar() {
   const codigoError = vista.leerErrorDeUrl(); // se leen antes de pintar nada
   const tokenConfirmacion = vista.leerTokenConfirmacion();
   vista.enlazar({
-    alIniciarSesion, alRegistrar, alCerrarSesion,
-    alComprobarActivo, alEliminarUsuario, alEliminarMiCuenta, alReenviarConfirmacion,
+    alIniciarSesion, alRegistrar, alCerrarSesion, alReenviarConfirmacion, alNavegar,
+    alCrearGrupo, alAbrirGrupo, alAnadirMiembro, alNuevoGasto, alGuardarGasto,
+    alEliminarGasto, alMarcarPagado, alComprobarActivo, alEliminarUsuario, alEliminarMiCuenta,
   });
   const aviso = tokenConfirmacion !== null ? await confirmarCuenta(tokenConfirmacion) : null;
   try {

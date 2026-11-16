@@ -17,6 +17,7 @@ def test_se_sirven_los_archivos_del_frontend():
         "/front/gui/estilos.css",
         "/front/gui/vista.js",
         "/front/controlador/controlador.js",
+        "/front/controlador/dinero.js",
         "/front/com/clienteApi.js",
     ]:
         assert cliente.get(ruta).status_code == 200, ruta
@@ -25,4 +26,4 @@ def test_se_sirven_los_archivos_del_frontend():
 def test_la_interfaz_y_la_api_comparten_origen():
     # Mismo servidor: la web y la API responden en el mismo host
     assert cliente.get("/").status_code == 200
-    assert cliente.get("/health").status_code == 200
+    assert cliente.get("/health").status_code == 200

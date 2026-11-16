@@ -27,3 +27,11 @@ class CredencialesInvalidas(ErrorDeNegocio):
 
 class TokenInvalido(ErrorDeNegocio):
     pass
+
+
+class GrupoNoEncontrado(ErrorDeNegocio):
+    pass
+
+
+class YaEsMiembro(ErrorDeNegocio):
+    pass
