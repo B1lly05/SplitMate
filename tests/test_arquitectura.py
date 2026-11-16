@@ -22,10 +22,11 @@ def test_la_logica_no_depende_de_la_api_ni_de_los_datos_ni_del_framework():
             assert not modulo.startswith(prohibidos), f"{archivo.name} importa {modulo}"
 
 
-def test_los_proveedores_externos_no_dependen_de_la_logica_ni_de_la_api():
+def test_los_servicios_externos_no_dependen_de_la_api_ni_de_los_datos():
+    # Pueden implementar contratos de la lógica (como hacen los datos), nada más
     for archivo in _archivos("back/externos", ".py"):
         for modulo in _importaciones_python(archivo):
-            assert not modulo.startswith(("back.logica", "back.api", "back.datos")), (
+            assert not modulo.startswith(("back.api", "back.datos")), (
                 f"{archivo.name} importa {modulo}"
             )
 

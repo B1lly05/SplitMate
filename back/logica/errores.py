@@ -23,3 +23,7 @@ class NoAutenticado(ErrorDeNegocio):
     pass
 class CredencialesInvalidas(ErrorDeNegocio):
     pass
+
+
+class TokenInvalido(ErrorDeNegocio):
+    pass

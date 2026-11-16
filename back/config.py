@@ -28,3 +28,8 @@ COOKIE_SEGURA = _activado("COOKIE_SEGURA")  # true en producción (https)
 BASE_URL = (os.getenv("BASE_URL", "").strip() or "http://127.0.0.1:8000").rstrip("/")
 GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID", "").strip()
 GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET", "").strip()
+
+# Correo transaccional (Brevo). Sin BREVO_API_KEY y MAIL_REMITENTE no se envía nada.
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "").strip()
+MAIL_REMITENTE = os.getenv("MAIL_REMITENTE", "").strip()
+MAIL_NOMBRE = os.getenv("MAIL_NOMBRE", "").strip() or "SplitMate"
