@@ -39,10 +39,21 @@ class ServicioAuth:
         if usuario.estado == Estado.PENDIENTE:
             log.warning("Inicio de sesión rechazado: cuenta pendiente id=%s", usuario.id)
             raise CuentaNoDisponible("Debes confirmar tu correo antes de iniciar sesión")
-        token = secrets.token_urlsafe(32)
-        self.sesiones.guardar(Sesion(token, usuario.id, self.reloj() + self.duracion))
+        token = self._abrir_sesion(usuario)
         log.info("Inicio de sesión correcto id=%s", usuario.id)
         return token, usuario
+
+    def login_externo(self, email: str) -> tuple[str, Usuario]:
+        """Inicio de sesión con un email verificado por un proveedor externo (OAuth)."""
+        usuario = self.usuarios.acceso_externo(email)
+        token = self._abrir_sesion(usuario)
+        log.info("Inicio de sesión externo correcto id=%s", usuario.id)
+        return token, usuario
+
+    def _abrir_sesion(self, usuario: Usuario) -> str:
+        token = secrets.token_urlsafe(32)
+        self.sesiones.guardar(Sesion(token, usuario.id, self.reloj() + self.duracion))
+        return token
 
     def logout(self, token: str) -> None:
         self.sesiones.eliminar(token)
@@ -57,4 +68,4 @@ class ServicioAuth:
         if sesion.expira_en <= self.reloj():
             self.sesiones.eliminar(token)
             raise NoAutenticado("La sesión ha caducado")
-        return self.usuarios.identificar(sesion.id_usuario)
+        return self.usuarios.identificar(sesion.id_usuario)

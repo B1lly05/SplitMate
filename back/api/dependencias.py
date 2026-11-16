@@ -2,12 +2,13 @@ import logging
 from datetime import timedelta
 from functools import lru_cache
 
-from fastapi import Cookie, Depends
+from fastapi import Cookie, Depends, Response
 
 from back import config
 from back.datos.memoria import RepositorioMemoria
 from back.datos.mongo import crear_repositorios_mongo
 from back.datos.sesiones_memoria import RepositorioSesionesMemoria
+from back.externos.github import ProveedorGitHub
 from back.logica.auth import ServicioAuth
 from back.logica.modelos import Usuario
 from back.logica.servicio import ServicioUsuarios
@@ -64,3 +65,17 @@ def usuario_de_sesion(
     auth: ServicioAuth = Depends(get_auth),
 ) -> Usuario:
     return auth.usuario_de_sesion(sesion)
+
+
+def get_proveedor() -> ProveedorGitHub:
+    """Proveedor OAuth. Se ensambla aquí para poder sustituirlo en las pruebas."""
+    return ProveedorGitHub(config.GITHUB_CLIENT_ID, config.GITHUB_CLIENT_SECRET)
+
+
+def poner_cookie_sesion(response: Response, token: str) -> None:
+    """Cookie de sesión: HttpOnly, SameSite=Lax y Secure en producción."""
+    response.set_cookie(
+        NOMBRE_COOKIE, token,
+        httponly=True, samesite="lax", secure=COOKIE_SEGURA,
+        max_age=int(DURACION_SESION.total_seconds()), path="/",
+    )

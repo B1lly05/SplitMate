@@ -4,3 +4,6 @@ import os
 os.environ["MONGODB_URI"] = ""
 os.environ["CONFIRMAR_AUTOMATICAMENTE"] = ""
 os.environ["COOKIE_SEGURA"] = ""
+os.environ["GITHUB_CLIENT_ID"] = ""
+os.environ["GITHUB_CLIENT_SECRET"] = ""
+os.environ["BASE_URL"] = ""

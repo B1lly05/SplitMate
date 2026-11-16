@@ -92,3 +92,11 @@ main:has(#panel-admin:not([hidden])) { max-width: 52rem; }
 table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 th, td { padding: 0.5rem 0.6rem; text-align: left; border-bottom: 1px solid var(--borde); }
 td button { padding: 0.35rem 0.6rem; font-size: 0.85rem; margin-right: 0.3rem; }
+
+.separador { text-align: center; color: var(--suave); margin: 1rem 0 0.75rem; font-size: 0.85rem; }
+.boton-externo {
+  display: block; text-align: center; text-decoration: none;
+  padding: 0.6rem 0.9rem; border: 1px solid var(--borde); border-radius: 0.4rem;
+  color: var(--texto); background: var(--tarjeta); font-weight: 600;
+}
+.boton-externo:hover { border-color: var(--acento); }

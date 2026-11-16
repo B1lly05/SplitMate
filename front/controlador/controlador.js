@@ -6,6 +6,17 @@ import * as vista from "../gui/vista.js";
 
 let usuarioActual = null;
 
+// Textos fijos para los códigos de error del inicio de sesión con GitHub.
+// Un código desconocido nunca se muestra tal cual: se usa el mensaje genérico.
+const MENSAJES_OAUTH = {
+  oauth_cancelado: "Has cancelado el acceso con GitHub.",
+  oauth_fallo: "No se pudo iniciar sesión con GitHub. Inténtalo de nuevo.",
+  oauth_sin_email: "Tu cuenta de GitHub no tiene ningún correo verificado.",
+  cuenta_eliminada: "La cuenta ha sido eliminada.",
+  oauth_no_configurado: "El acceso con GitHub no está disponible ahora mismo.",
+};
+const MENSAJE_OAUTH_GENERICO = "No se pudo iniciar sesión con GitHub.";
+
 async function cargarPanel() {
   try {
     const usuarios = await api.listarUsuarios();
@@ -115,6 +126,7 @@ async function alEliminarMiCuenta() {
 }
 
 async function iniciar() {
+  const codigoError = vista.leerErrorDeUrl(); // se lee antes de pintar nada
   vista.enlazar({
     alIniciarSesion, alRegistrar, alCerrarSesion,
     alComprobarActivo, alEliminarUsuario, alEliminarMiCuenta,
@@ -126,10 +138,12 @@ async function iniciar() {
   } catch (error) {
     // Sin sesión válida se redirige a la pantalla de login
     vista.mostrar("login");
-    if (error.estado !== 401) {
+    if (codigoError !== null) {
+      vista.mostrarMensaje("login", MENSAJES_OAUTH[codigoError] ?? MENSAJE_OAUTH_GENERICO);
+    } else if (error.estado !== 401) {
       vista.mostrarMensaje("login", error.message);
     }
   }
 }
 
-iniciar();
+iniciar();
