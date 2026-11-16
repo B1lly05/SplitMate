@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from back.api import auth, dependencias, usuarios
+from back.api import auth, dependencias, oauth, usuarios
 from back.api.errores import registrar_manejadores
 from back.logs import configurar_logging
 FRONT = Path(__file__).resolve().parent.parent / "front"
@@ -22,6 +22,7 @@ app = FastAPI(lifespan=ciclo_de_vida)
 registrar_manejadores(app)
 app.include_router(usuarios.router)
 app.include_router(auth.router)
+app.include_router(oauth.router)
 app.mount("/front", StaticFiles(directory=FRONT), name="front")
 
 
@@ -32,4 +33,4 @@ def health():
 
 @app.get("/", include_in_schema=False)
 def inicio():
-    return FileResponse(FRONT / "gui" / "index.html")
+    return FileResponse(FRONT / "gui" / "index.html")

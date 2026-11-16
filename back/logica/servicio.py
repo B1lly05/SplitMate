@@ -70,6 +70,30 @@ class ServicioUsuarios:
         self.repositorio.actualizar(admin)
         return True
 
+    def acceso_externo(self, email: str) -> Usuario:
+        """Acceso con un proveedor externo (OAuth) con un email ya verificado por él.
+        - Si no existe: crea una cuenta activa, sin contraseña y con rol usuario (nunca admin).
+        - Si está pendiente: la activa y anula su contraseña local, para que quien se
+          registró antes con un correo ajeno no conserve el acceso.
+        - Si está eliminada: no puede volver a entrar."""
+        email = email.strip().lower()
+        if not PATRON_EMAIL.match(email):
+            raise DatosInvalidos("El email no tiene un formato válido")
+        usuario = self.repositorio.obtener_por_email(email)
+        if usuario is None:
+            usuario = self.repositorio.crear(email, Rol.USUARIO, Estado.ACTIVO, None)
+            log.info("Usuario creado por acceso externo id=%s", usuario.id)
+            return usuario
+        if usuario.estado == Estado.ELIMINADO:
+            log.warning("Acceso externo rechazado: cuenta eliminada id=%s", usuario.id)
+            raise CuentaNoDisponible("La cuenta ha sido eliminada")
+        if usuario.estado == Estado.PENDIENTE:
+            usuario.estado = Estado.ACTIVO
+            usuario.password_hash = None
+            self.repositorio.actualizar(usuario)
+            log.info("Cuenta pendiente activada por acceso externo id=%s", usuario.id)
+        return usuario
+
     def listar(self, solicitante: Usuario) -> list[Usuario]:
         self._exigir_admin(solicitante)
         return self.repositorio.listar()
@@ -114,4 +138,4 @@ class ServicioUsuarios:
         usuario = self.repositorio.obtener_por_id(id_usuario)
         if usuario is None or usuario.estado == Estado.ELIMINADO:
             raise NoAutenticado("Usuario no válido")
-        return usuario
+        return usuario

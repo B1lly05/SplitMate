@@ -133,3 +133,14 @@ export function limpiarContrasenas() {
   $("login-password").value = "";
   $("registro-password").value = "";
 }
+
+// Si el servidor nos devuelve a la portada con ?error=<código> (fallo de OAuth), lo lee y
+// limpia la URL para que el aviso no reaparezca al recargar. Devuelve el código o null.
+export function leerErrorDeUrl() {
+  const parametros = new URLSearchParams(window.location.search);
+  const codigo = parametros.get("error");
+  if (codigo !== null) {
+    window.history.replaceState(null, "", window.location.pathname);
+  }
+  return codigo;
+}

@@ -18,11 +18,7 @@ class LoginEntrada(BaseModel):
 def login(datos: LoginEntrada, response: Response,
           auth: ServicioAuth = Depends(dep.get_auth)):
     token, usuario = auth.login(datos.email, datos.password)
-    response.set_cookie(
-        dep.NOMBRE_COOKIE, token,
-        httponly=True, samesite="lax", secure=dep.COOKIE_SEGURA,
-        max_age=int(dep.DURACION_SESION.total_seconds()), path="/",
-    )
+    dep.poner_cookie_sesion(response, token)
     return usuario
 
 
@@ -38,4 +34,4 @@ def logout(sesion: str | None = Cookie(default=None),
 
 @router.get("/sesion", response_model=UsuarioSalida)
 def sesion_actual(usuario: Usuario = Depends(dep.usuario_de_sesion)):
-    return usuario
+    return usuario

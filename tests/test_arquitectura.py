@@ -15,10 +15,19 @@ def _importaciones_python(archivo):
 
 
 def test_la_logica_no_depende_de_la_api_ni_de_los_datos_ni_del_framework():
-    prohibidos = ("fastapi", "starlette", "pymongo", "back.api", "back.datos")
+    prohibidos = ("fastapi", "starlette", "pymongo", "httpx",
+                  "back.api", "back.datos", "back.externos")
     for archivo in _archivos("back/logica", ".py"):
         for modulo in _importaciones_python(archivo):
             assert not modulo.startswith(prohibidos), f"{archivo.name} importa {modulo}"
+
+
+def test_los_proveedores_externos_no_dependen_de_la_logica_ni_de_la_api():
+    for archivo in _archivos("back/externos", ".py"):
+        for modulo in _importaciones_python(archivo):
+            assert not modulo.startswith(("back.logica", "back.api", "back.datos")), (
+                f"{archivo.name} importa {modulo}"
+            )
 
 
 def test_la_api_solo_toca_los_datos_al_ensamblar_en_dependencias():
@@ -47,4 +56,4 @@ def test_la_comunicacion_no_toca_la_pantalla_ni_conoce_la_interfaz():
     for archivo in _archivos("front/com", ".js"):
         texto = archivo.read_text(encoding="utf-8")
         assert "document." not in texto, archivo.name
-        assert "/gui/" not in texto and "/controlador/" not in texto, archivo.name
+        assert "/gui/" not in texto and "/controlador/" not in texto, archivo.name
