@@ -117,6 +117,7 @@
         <button type="button" role="tab" class="pestana activa" data-pestana="gastos" aria-selected="true">Gastos</button>
         <button type="button" role="tab" class="pestana" data-pestana="saldos" aria-selected="false">Saldos</button>
         <button type="button" role="tab" class="pestana" data-pestana="miembros" aria-selected="false">Miembros</button>
+        <button type="button" role="tab" class="pestana" data-pestana="actividad" aria-selected="false">Actividad</button>
       </div>
 
       <div data-panel="gastos">
@@ -140,12 +141,21 @@
 
       <div data-panel="miembros" hidden>
         <ul id="lista-miembros" class="lista"></ul>
+        <div id="bloque-invitaciones" hidden>
+          <h2>Invitaciones pendientes</h2>
+          <ul id="lista-invitaciones" class="lista"></ul>
+        </div>
         <h2>Añadir a alguien</h2>
         <form id="form-miembro" class="fila-form">
           <input type="email" id="miembro-email" placeholder="email@ejemplo.com" aria-label="Email de la persona" required>
           <button type="submit" class="primario">Añadir</button>
         </form>
-        <p class="nota">La persona ya debe estar registrada y tener la cuenta activa.</p>
+        <p class="nota">Si ya tiene cuenta entra al grupo directamente. Si no, le enviamos una invitación por correo y se unirá cuando se registre con ese mismo email.</p>
+      </div>
+
+      <div data-panel="actividad" hidden>
+        <ul id="lista-actividad" class="lista"></ul>
+        <p id="vacio-actividad" class="vacio" hidden>Todavía no hay actividad.</p>
       </div>
     </section>
 
@@ -208,8 +218,9 @@
         <select id="gasto-pagador"></select>
       </label>
       <fieldset>
-        <legend>Se reparte a partes iguales entre</legend>
+        <legend>Se reparte entre (y cuántas partes le tocan a cada uno)</legend>
         <div id="gasto-participantes" class="participantes"></div>
+        <p class="nota">Con 1 parte para todos, el reparto es igual. Pon 2 a quien debe pagar el doble, por ejemplo un adulto frente a un niño.</p>
       </fieldset>
       <p id="mensaje-gasto" class="mensaje" role="alert"></p>
       <div class="acciones fin">

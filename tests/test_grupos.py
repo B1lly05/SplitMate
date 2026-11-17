@@ -9,6 +9,7 @@ from back.datos.mongo import RepositorioGruposMongo, RepositorioUsuariosMongo
 from back.logica.errores import (
     DatosInvalidos, GrupoNoEncontrado, NoAutorizado, UsuarioNoEncontrado, YaEsMiembro,
 )
+from back.externos.correo_simulado import EnviadorSimulado
 from back.logica.grupos import MAX_MIEMBROS, ServicioGrupos
 from back.logica.modelos import Estado
 from back.logica.servicio import ServicioUsuarios
@@ -23,7 +24,7 @@ def pila(request):
         base = mongomock.MongoClient()["pruebas"]
         usuarios = ServicioUsuarios(RepositorioUsuariosMongo(base), True)
         repo = RepositorioGruposMongo(base)
-    servicio = ServicioGrupos(repo, usuarios,
+    servicio = ServicioGrupos(repo, usuarios, EnviadorSimulado(), "https://splitmate.ejemplo.com",
                               reloj=lambda: datetime(2026, 11, 16, 12, 0, tzinfo=timezone.utc))
     gente = {n: usuarios.registrar(f"{n}@ejemplo.com", "clave-segura-1")
              for n in ("ana", "beto", "carla", "dani")}
@@ -72,16 +73,14 @@ def test_un_no_miembro_no_puede_ver_el_grupo_ni_saber_que_existe(pila):
 def test_anadir_miembro_por_email(pila):
     servicio, gente = pila
     g = _grupo_con(pila)
-    g = servicio.anadir_miembro(gente["ana"], g.id, "  BETO@ejemplo.com ")
-    assert gente["beto"].id in g.miembros
+    g, resultado = servicio.anadir_miembro(gente["ana"], g.id, "  BETO@ejemplo.com ")
+    assert resultado == "anadido" and gente["beto"].id in g.miembros
 
 
-def test_anadir_a_alguien_inexistente_o_sin_activar_falla(pila):
+def test_anadir_a_una_cuenta_eliminada_falla(pila):
     servicio, gente = pila
     g = _grupo_con(pila)
-    with pytest.raises(UsuarioNoEncontrado):
-        servicio.anadir_miembro(gente["ana"], g.id, "nadie@ejemplo.com")
-    gente["carla"].estado = Estado.PENDIENTE
+    gente["carla"].estado = Estado.ELIMINADO
     servicio.usuarios.repositorio.actualizar(gente["carla"])
     with pytest.raises(UsuarioNoEncontrado):
         servicio.anadir_miembro(gente["ana"], g.id, "carla@ejemplo.com")
@@ -99,6 +98,13 @@ def test_un_no_miembro_no_puede_anadir_gente(pila):
     g = _grupo_con(pila)
     with pytest.raises(GrupoNoEncontrado):
         servicio.anadir_miembro(gente["beto"], g.id, "carla@ejemplo.com")
+
+
+def test_un_email_invalido_se_rechaza(pila):
+    servicio, gente = pila
+    g = _grupo_con(pila)
+    with pytest.raises(DatosInvalidos):
+        servicio.anadir_miembro(gente["ana"], g.id, "esto-no-es-un-email")
 
 
 def test_hay_un_maximo_de_miembros(pila):

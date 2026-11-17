@@ -7,7 +7,7 @@ from starlette.exceptions import HTTPException as HTTPExceptionStarlette
 
 from back.logica.errores import (
     CredencialesInvalidas, CuentaNoDisponible, DatosInvalidos, EmailDuplicado, ErrorDeNegocio,
-    GrupoNoEncontrado, NoAutenticado, NoAutorizado, TokenInvalido, UsuarioNoEncontrado,
+    CorreoNoEnviado, GrupoNoEncontrado, NoAutenticado, NoAutorizado, TokenInvalido, UsuarioNoEncontrado,
     YaEsMiembro,
 )
 
@@ -17,6 +17,7 @@ CODIGOS = {
     DatosInvalidos: 400, CredencialesInvalidas: 401, NoAutenticado: 401, NoAutorizado: 403,
     CuentaNoDisponible: 403, UsuarioNoEncontrado: 404, EmailDuplicado: 409,
     TokenInvalido: 400, GrupoNoEncontrado: 404, YaEsMiembro: 409,
+    CorreoNoEnviado: 503,
 }
 
 

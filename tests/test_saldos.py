@@ -73,3 +73,36 @@ def test_propiedad_los_saldos_suman_cero_y_las_transferencias_los_saldan(semilla
         saldos[deudor] += importe
         saldos[acreedor] -= importe
     assert all(s == 0 for s in saldos.values())
+
+
+# --- partes por persona -----------------------------------------------------------
+def test_repartir_con_pesos_en_proporcion():
+    assert repartir(900, [1, 2], pesos={1: 2, 2: 1}) == {1: 600, 2: 300}
+
+
+def test_el_centimo_sobrante_va_a_quien_tiene_mayor_resto():
+    # 100 céntimos en proporción 2:1 → 66,67 y 33,33 → 67 y 33
+    assert repartir(100, [1, 2], pesos={1: 2, 2: 1}) == {1: 67, 2: 33}
+
+
+def test_quien_no_tiene_peso_cuenta_como_uno():
+    assert repartir(300, [1, 2, 3], pesos={1: 2}) == {1: 150, 2: 75, 3: 75}
+
+
+def test_sin_pesos_el_reparto_es_igual_que_antes():
+    assert repartir(100, [1, 2, 3], 1, {}) == repartir(100, [1, 2, 3], 1)
+
+
+@pytest.mark.parametrize("semilla", range(40))
+def test_propiedad_con_pesos_la_suma_siempre_es_exacta(semilla):
+    azar = random.Random(semilla)
+    ids = list(range(1, azar.randint(2, 7)))
+    pesos = {uid: azar.randint(1, 10) for uid in ids}
+    importe = azar.randint(1, 1_000_000)
+    reparto = repartir(importe, ids, azar.randint(0, 50), pesos)
+    assert sum(reparto.values()) == importe and all(v >= 0 for v in reparto.values())
+
+
+def test_los_saldos_usan_los_pesos_del_gasto():
+    gasto = Gasto(1, 1, "Alquiler", 3000, 1, [1, 2], 1, "2026-11-16", {2: 2})
+    assert calcular_saldos([gasto], []) == {1: 2000, 2: -2000}

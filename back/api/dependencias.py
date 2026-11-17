@@ -52,8 +52,9 @@ def _componentes():
             "MONGODB_URI no definida: usando memoria (los datos no se conservan)"
         )
     servicio = ServicioUsuarios(usuarios, config.CONFIRMAR_AUTOMATICAMENTE)
-    confirmacion = ServicioConfirmacion(servicio, tokens, _crear_enviador(), config.BASE_URL)
-    servicio_grupos = ServicioGrupos(grupos, servicio)
+    enviador = _crear_enviador()
+    confirmacion = ServicioConfirmacion(servicio, tokens, enviador, config.BASE_URL)
+    servicio_grupos = ServicioGrupos(grupos, servicio, enviador, config.BASE_URL)
     return (servicio, ServicioAuth(servicio, sesiones, DURACION_SESION), confirmacion,
             servicio_grupos)
 

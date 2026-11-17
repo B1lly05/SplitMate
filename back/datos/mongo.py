@@ -7,7 +7,9 @@ from pymongo import MongoClient, ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
 from back.logica.errores import EmailDuplicado
-from back.logica.modelos import Estado, Gasto, Grupo, Liquidacion, Rol, Usuario
+from back.logica.modelos import (
+    Actividad, Estado, Gasto, Grupo, Invitacion, Liquidacion, Rol, Usuario,
+)
 from back.logica.repositorio import RepositorioUsuarios
 from back.logica.repositorio_grupos import RepositorioGrupos
 from back.logica.sesiones import RepositorioSesiones, Sesion
@@ -157,7 +159,12 @@ class RepositorioGruposMongo(RepositorioGrupos):
         self._grupos = base["grupos"]
         self._gastos = base["gastos"]
         self._liquidaciones = base["liquidaciones"]
+        self._actividad = base["actividad"]
+        self._invitaciones = base["invitaciones"]
         self._contadores = base["contadores"]
+        self._actividad.create_index("grupo_id")
+        self._invitaciones.create_index("grupo_id")
+        self._invitaciones.create_index("email")
         self._grupos.create_index("miembros")
         self._gastos.create_index("grupo_id")
         self._liquidaciones.create_index("grupo_id")
@@ -181,7 +188,9 @@ class RepositorioGruposMongo(RepositorioGrupos):
             return None
         return Gasto(doc["_id"], doc["grupo_id"], doc["concepto"], doc["importe"],
                      doc["pagador_id"], list(doc["participantes"]), doc["creado_por"],
-                     doc["fecha"])
+                     doc["fecha"],
+                     # MongoDB solo admite claves de texto: se vuelven a convertir a enteros
+                     {int(k): v for k, v in doc.get("pesos", {}).items()})
 
     @staticmethod
     def _a_liquidacion(doc) -> Liquidacion:
@@ -204,10 +213,11 @@ class RepositorioGruposMongo(RepositorioGrupos):
         self._grupos.update_one({"_id": grupo_id}, {"$addToSet": {"miembros": usuario_id}})
 
     def crear_gasto(self, grupo_id, concepto, importe, pagador_id, participantes,
-                    creado_por, fecha):
+                    creado_por, fecha, pesos=None):
         doc = {"_id": self._siguiente("gastos"), "grupo_id": grupo_id, "concepto": concepto,
                "importe": importe, "pagador_id": pagador_id,
-               "participantes": list(participantes), "creado_por": creado_por, "fecha": fecha}
+               "participantes": list(participantes), "creado_por": creado_por, "fecha": fecha,
+               "pesos": {str(k): v for k, v in (pesos or {}).items()}}
         self._gastos.insert_one(doc)
         return self._a_gasto(doc)
 
@@ -229,6 +239,38 @@ class RepositorioGruposMongo(RepositorioGrupos):
     def listar_liquidaciones(self, grupo_id):
         return [self._a_liquidacion(d)
                 for d in self._liquidaciones.find({"grupo_id": grupo_id}).sort("_id", 1)]
+
+
+    def registrar_actividad(self, grupo_id, usuario_id, tipo, datos, fecha):
+        doc = {"_id": self._siguiente("actividad"), "grupo_id": grupo_id,
+               "usuario_id": usuario_id, "tipo": tipo, "datos": dict(datos), "fecha": fecha}
+        self._actividad.insert_one(doc)
+        return Actividad(doc["_id"], grupo_id, usuario_id, tipo, doc["datos"], fecha)
+
+    def listar_actividad(self, grupo_id, limite):
+        docs = self._actividad.find({"grupo_id": grupo_id}).sort("_id", -1).limit(limite)
+        return [Actividad(d["_id"], d["grupo_id"], d["usuario_id"], d["tipo"],
+                          d["datos"], d["fecha"]) for d in docs]
+
+    @staticmethod
+    def _a_invitacion(doc) -> Invitacion:
+        return Invitacion(doc["_id"], doc["grupo_id"], doc["email"], doc["invitado_por"],
+                          doc["creada_en"], doc["expira_en"])
+
+    def crear_invitacion(self, grupo_id, email, invitado_por, creada_en, expira_en):
+        doc = {"_id": self._siguiente("invitaciones"), "grupo_id": grupo_id, "email": email,
+               "invitado_por": invitado_por, "creada_en": creada_en, "expira_en": expira_en}
+        self._invitaciones.insert_one(doc)
+        return self._a_invitacion(doc)
+
+    def listar_invitaciones_de_grupo(self, grupo_id):
+        return [self._a_invitacion(d) for d in self._invitaciones.find({"grupo_id": grupo_id})]
+
+    def listar_invitaciones_para(self, email):
+        return [self._a_invitacion(d) for d in self._invitaciones.find({"email": email})]
+
+    def eliminar_invitacion(self, id):
+        self._invitaciones.delete_one({"_id": id})
 
 
 def crear_repositorios_mongo(uri: str, nombre_db: str):

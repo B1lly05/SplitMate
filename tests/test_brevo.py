@@ -62,3 +62,38 @@ def test_el_error_no_filtra_la_clave_ni_el_enlace(caplog):
         _enviador(manejador).enviar_confirmacion("ana@ejemplo.com", ENLACE)
     todo = str(error.value) + caplog.text
     assert "clave-api-secreta" not in todo and "tok_abc-123" not in todo
+
+
+def _capturar():
+    recibidas = []
+
+    def manejador(peticion):
+        recibidas.append(json.loads(peticion.content))
+        return httpx.Response(201, json={})
+
+    return recibidas, _enviador(manejador)
+
+
+def test_el_recordatorio_lleva_importe_remitente_y_grupo():
+    recibidas, enviador = _capturar()
+    enviador.enviar_recordatorio("beto@ejemplo.com", "ana@ejemplo.com", "Viaje", 1550, "https://x.es")
+    cuerpo = recibidas[0]
+    assert cuerpo["to"] == [{"email": "beto@ejemplo.com"}]
+    assert "15,50 €" in cuerpo["htmlContent"] and "ana@ejemplo.com" in cuerpo["htmlContent"]
+    assert "Viaje" in cuerpo["htmlContent"] and cuerpo["subject"]
+
+
+def test_la_invitacion_lleva_el_grupo_y_quien_invita():
+    recibidas, enviador = _capturar()
+    enviador.enviar_invitacion("nuevo@ejemplo.com", "ana@ejemplo.com", "Viaje", "https://x.es")
+    assert "Viaje" in recibidas[0]["htmlContent"] and "ana@ejemplo.com" in recibidas[0]["htmlContent"]
+    assert recibidas[0]["to"] == [{"email": "nuevo@ejemplo.com"}]
+
+
+def test_el_nombre_del_grupo_no_puede_inyectar_html_en_los_correos():
+    recibidas, enviador = _capturar()
+    malo = '<script>alert(1)</script>'
+    enviador.enviar_recordatorio("b@e.com", "a@e.com", malo, 100, "https://x.es")
+    enviador.enviar_invitacion("b@e.com", "a@e.com", malo, "https://x.es")
+    for cuerpo in recibidas:
+        assert "<script>" not in cuerpo["htmlContent"]

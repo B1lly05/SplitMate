@@ -35,3 +35,7 @@ class GrupoNoEncontrado(ErrorDeNegocio):
 
 class YaEsMiembro(ErrorDeNegocio):
     pass
+
+
+class CorreoNoEnviado(ErrorDeNegocio):
+    pass

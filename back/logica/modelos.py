@@ -41,6 +41,8 @@ class Gasto:
     participantes: list[int]
     creado_por: int
     fecha: str  # ISO 8601
+    # Partes de cada participante (p. ej. adulto 2, niño 1). Si falta alguien, cuenta 1.
+    pesos: dict[int, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -52,3 +54,25 @@ class Liquidacion:
     a_id: int   # quien recibe
     importe: int  # en céntimos
     fecha: str
+
+
+@dataclass
+class Actividad:
+    """Una línea del historial del grupo: quién hizo qué y cuándo."""
+    id: int
+    grupo_id: int
+    usuario_id: int
+    tipo: str
+    datos: dict
+    fecha: str
+
+
+@dataclass
+class Invitacion:
+    """Invitación a un grupo para un email que todavía no tiene cuenta activa."""
+    id: int
+    grupo_id: int
+    email: str
+    invitado_por: int
+    creada_en: str
+    expira_en: str

@@ -181,8 +181,11 @@ dialog h2 { margin: 0; color: var(--texto); font-size: 1.2rem; }
 fieldset { border: 0; padding: 0; margin: 1rem 0 0; }
 legend { color: var(--suave); font-size: 0.85rem; padding: 0; }
 .participantes { display: grid; gap: 0.4rem; margin-top: 0.5rem; max-height: 180px; overflow-y: auto; }
-.participante { display: flex; align-items: center; gap: 0.6rem; margin: 0; padding: 0.5rem 0.7rem; color: var(--texto); background: var(--fondo); border: 1px solid var(--borde); border-radius: 10px; cursor: pointer; }
-.participante input { width: auto; margin: 0; accent-color: var(--acento); }
+.participante { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.5rem 0.35rem 0.7rem; background: var(--fondo); border: 1px solid var(--borde); border-radius: 10px; }
+.participante-etiqueta { display: flex; align-items: center; gap: 0.6rem; flex: 1; margin: 0; color: var(--texto); cursor: pointer; }
+.participante-etiqueta input { width: auto; margin: 0; accent-color: var(--acento); }
+.participante .peso { width: 4.2rem; margin: 0; padding: 0.4rem 0.5rem; text-align: center; }
+.participante .partes { color: var(--suave); font-size: 0.8rem; }
 
 @media (max-width: 520px) {
   .marca-texto { display: none; }
@@ -192,3 +195,8 @@ legend { color: var(--suave); font-size: 0.85rem; padding: 0; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+.fila.actividad { align-items: flex-start; }
+.fila.actividad .punto { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--elevada); border: 1px solid var(--borde); font-size: 0.9rem; }
+.fila .accion + .accion { margin-left: 0.3rem; }
+.insignia.pendiente { color: var(--acento-2); border-color: rgba(62, 198, 255, 0.4); }

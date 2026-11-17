@@ -83,3 +83,6 @@ export const eliminarGasto = (id, gastoId) =>
 
 export const crearLiquidacion = (id, pago) =>
   peticion("POST", `/grupos/${id}/liquidaciones`, pago);
+
+export const recordarPago = (id, deudorId) =>
+  peticion("POST", `/grupos/${id}/recordatorios`, { deudor_id: deudorId });
