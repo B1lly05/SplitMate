@@ -23,6 +23,11 @@ class GastoEntrada(BaseModel):
     importe: int            # céntimos
     pagador_id: int
     participantes: list[int]
+    pesos: dict[int, int] | None = None   # partes por persona; si falta, 1
+
+
+class RecordatorioEntrada(BaseModel):
+    deudor_id: int
 
 
 class LiquidacionEntrada(BaseModel):
@@ -40,7 +45,7 @@ def _detalle_a_json(d: DetalleGrupo) -> dict:
         "gastos": [
             {"id": g.id, "concepto": g.concepto, "importe": g.importe,
              "pagador_id": g.pagador_id, "participantes": g.participantes,
-             "creado_por": g.creado_por, "fecha": g.fecha}
+             "pesos": g.pesos, "creado_por": g.creado_por, "fecha": g.fecha}
             for g in d.gastos
         ],
         "liquidaciones": [
@@ -51,6 +56,13 @@ def _detalle_a_json(d: DetalleGrupo) -> dict:
         "saldos": [{"usuario_id": uid, "saldo": s} for uid, s in sorted(d.saldos.items())],
         "transferencias": [{"de_id": de, "a_id": a, "importe": i}
                            for de, a, i in d.transferencias],
+        "actividad": [
+            {"id": e.id, "usuario_id": e.usuario_id, "tipo": e.tipo, "datos": e.datos,
+             "fecha": e.fecha}
+            for e in d.actividad
+        ],
+        "invitaciones": [{"id": i.id, "email": i.email, "invitado_por": i.invitado_por,
+                          "expira_en": i.expira_en} for i in d.invitaciones],
     }
 
 
@@ -80,7 +92,8 @@ def detalle(grupo_id: int, usuario: Usuario = Depends(usuario_de_sesion),
 def anadir_miembro(grupo_id: int, datos: MiembroEntrada,
                    usuario: Usuario = Depends(usuario_de_sesion),
                    servicio: ServicioGrupos = Depends(get_grupos)):
-    return _resumen(servicio.anadir_miembro(usuario, grupo_id, datos.email))
+    grupo, resultado = servicio.anadir_miembro(usuario, grupo_id, datos.email)
+    return {**_resumen(grupo), "resultado": resultado}
 
 
 @router.post("/{grupo_id}/gastos", status_code=201)
@@ -88,7 +101,7 @@ def crear_gasto(grupo_id: int, datos: GastoEntrada,
                 usuario: Usuario = Depends(usuario_de_sesion),
                 servicio: ServicioGrupos = Depends(get_grupos)):
     gasto = servicio.registrar_gasto(usuario, grupo_id, datos.concepto, datos.importe,
-                                     datos.pagador_id, datos.participantes)
+                                     datos.pagador_id, datos.participantes, datos.pesos)
     return {"id": gasto.id}
 
 
@@ -107,3 +120,10 @@ def crear_liquidacion(grupo_id: int, datos: LiquidacionEntrada,
     pago = servicio.registrar_liquidacion(usuario, grupo_id, datos.de_id, datos.a_id,
                                           datos.importe)
     return {"id": pago.id}
+
+
+@router.post("/{grupo_id}/recordatorios", status_code=202)
+def recordar(grupo_id: int, datos: RecordatorioEntrada,
+             usuario: Usuario = Depends(usuario_de_sesion),
+             servicio: ServicioGrupos = Depends(get_grupos)):
+    return {"importe": servicio.recordar(usuario, grupo_id, datos.deudor_id)}

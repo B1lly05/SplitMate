@@ -5,6 +5,7 @@ from back.api.dependencias import get_auth, get_grupos, get_servicio
 from back.datos.grupos_memoria import RepositorioGruposMemoria
 from back.datos.memoria import RepositorioMemoria
 from back.datos.sesiones_memoria import RepositorioSesionesMemoria
+from back.externos.correo_simulado import EnviadorSimulado
 from back.logica.auth import ServicioAuth
 from back.logica.grupos import ServicioGrupos
 from back.logica.servicio import ServicioUsuarios
@@ -17,7 +18,8 @@ CLAVE = "clave-segura-1"
 def entorno():
     usuarios = ServicioUsuarios(RepositorioMemoria(), True)  # cuentas activas al registrarse
     auth = ServicioAuth(usuarios, RepositorioSesionesMemoria())
-    grupos = ServicioGrupos(RepositorioGruposMemoria(), usuarios)
+    grupos = ServicioGrupos(RepositorioGruposMemoria(), usuarios, EnviadorSimulado(),
+                            "https://splitmate.ejemplo.com")
     app.dependency_overrides[get_servicio] = lambda: usuarios
     app.dependency_overrides[get_auth] = lambda: auth
     app.dependency_overrides[get_grupos] = lambda: grupos
@@ -78,6 +80,7 @@ def test_un_no_miembro_recibe_404_en_todo(entorno):
     gid = ana.post("/grupos", json={"nombre": "Privado"}).json()["id"]
     assert intruso.get(f"/grupos/{gid}").status_code == 404
     assert intruso.post(f"/grupos/{gid}/miembros", json={"email": "ana@ejemplo.com"}).status_code == 404
+    assert intruso.post(f"/grupos/{gid}/recordatorios", json={"deudor_id": a}).status_code == 404
     assert intruso.post(f"/grupos/{gid}/gastos", json={
         "concepto": "x", "importe": 100, "pagador_id": i, "participantes": [i]}).status_code == 404
     assert intruso.get("/grupos").json() == []

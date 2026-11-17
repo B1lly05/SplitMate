@@ -146,15 +146,20 @@ const alCrearGrupo = (nombre) => conOcupado("grupos", async () => {
 const alAbrirGrupo = (id) => conOcupado("grupos", () => abrirGrupo(id));
 
 const alAnadirMiembro = (email) => conOcupado("grupo", async () => {
-  await api.anadirMiembro(grupoActual.id, email);
-  await abrirGrupo(grupoActual.id, "Miembro añadido.");
+  const respuesta = await api.anadirMiembro(grupoActual.id, email);
+  await abrirGrupo(
+    grupoActual.id,
+    respuesta.resultado === "invitado"
+      ? "Esa persona aún no tiene cuenta: le hemos enviado una invitación por correo."
+      : "Miembro añadido.",
+  );
 });
 
 function alNuevoGasto() {
   vista.abrirDialogoGasto(grupoActual.miembros, usuarioActual.id);
 }
 
-async function alGuardarGasto({ concepto, importe, pagadorId, participantes }) {
+async function alGuardarGasto({ concepto, importe, pagadorId, participantes, pesos }) {
   const centimos = eurosACentimos(importe);
   if (centimos === null) {
     vista.mostrarMensaje("gasto", "Escribe un importe válido, por ejemplo 12,50.");
@@ -163,7 +168,7 @@ async function alGuardarGasto({ concepto, importe, pagadorId, participantes }) {
   vista.ocupado(true);
   try {
     await api.crearGasto(grupoActual.id, {
-      concepto, importe: centimos, pagador_id: pagadorId, participantes,
+      concepto, importe: centimos, pagador_id: pagadorId, participantes, pesos,
     });
     vista.cerrarDialogoGasto();
     await abrirGrupo(grupoActual.id, "Gasto añadido.");
@@ -184,6 +189,12 @@ const alMarcarPagado = (deId, aId, importe) => conOcupado("grupo", async () => {
   if (!vista.confirmar("¿Confirmas que este pago ya se ha realizado?")) return;
   await api.crearLiquidacion(grupoActual.id, { de_id: deId, a_id: aId, importe });
   await abrirGrupo(grupoActual.id, "Pago registrado.");
+});
+
+const alRecordar = (deudorId) => conOcupado("grupo", async () => {
+  const { importe } = await api.recordarPago(grupoActual.id, deudorId);
+  const euros = (importe / 100).toFixed(2).replace(".", ",");
+  await abrirGrupo(grupoActual.id, `Recordatorio enviado por correo (${euros} €).`);
 });
 
 // ---------- administración y cuenta ----------
@@ -242,7 +253,8 @@ async function iniciar() {
   vista.enlazar({
     alIniciarSesion, alRegistrar, alCerrarSesion, alReenviarConfirmacion, alNavegar,
     alCrearGrupo, alAbrirGrupo, alAnadirMiembro, alNuevoGasto, alGuardarGasto,
-    alEliminarGasto, alMarcarPagado, alComprobarActivo, alEliminarUsuario, alEliminarMiCuenta,
+    alEliminarGasto, alMarcarPagado, alRecordar, alComprobarActivo, alEliminarUsuario,
+    alEliminarMiCuenta,
   });
   const aviso = tokenConfirmacion !== null ? await confirmarCuenta(tokenConfirmacion) : null;
   try {

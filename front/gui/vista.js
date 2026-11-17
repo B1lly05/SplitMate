@@ -8,7 +8,8 @@ const PANTALLAS_DE_ACCESO = ["login", "registro"];
 const ZONAS_DE_MENSAJE = ["login", "registro", "grupos", "grupo", "gasto", "cuenta", "admin"];
 const LISTAS_PRIVADAS = [
   "lista-grupos", "lista-gastos", "lista-saldos", "lista-transferencias",
-  "lista-liquidaciones", "lista-miembros", "grupo-chips", "tabla-usuarios-cuerpo",
+  "lista-liquidaciones", "lista-miembros", "lista-invitaciones", "lista-actividad",
+  "grupo-chips", "tabla-usuarios-cuerpo",
 ];
 
 const formatoEuros = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
@@ -16,6 +17,9 @@ const euros = (centimos) => formatoEuros.format(centimos / 100);
 const nombreCorto = (usuario) => usuario.email.split("@")[0];
 const fechaCorta = (iso) =>
   new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short" });
+
+const fechaYHora = (iso) =>
+  new Date(iso).toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 let grupoMostrado = null;
 
@@ -178,9 +182,10 @@ export function mostrarGrupo(detalle, idActual) {
   for (const gasto of detalle.gastos) {
     const pagador = porId.get(gasto.pagador_id) ?? { id: gasto.pagador_id, email: "?" };
     const entre = gasto.participantes.length === 1 ? "1 persona" : `${gasto.participantes.length} personas`;
+    const conPartes = Object.keys(gasto.pesos ?? {}).length > 0 ? " (por partes)" : "";
     const item = fila(
       avatar(pagador),
-      textoFila(gasto.concepto, `Pagó ${quien(gasto.pagador_id)} · entre ${entre} · ${fechaCorta(gasto.fecha)}`),
+      textoFila(gasto.concepto, `Pagó ${quien(gasto.pagador_id)} · entre ${entre}${conPartes} · ${fechaCorta(gasto.fecha)}`),
       el("span", "fila-importe", euros(gasto.importe)),
     );
     if (gasto.creado_por === idActual || detalle.creador_id === idActual) {
@@ -215,6 +220,14 @@ export function mostrarGrupo(detalle, idActual) {
       textoFila(`${quien(t.de_id)} paga a ${quien(t.a_id)}`, "Pago sugerido para saldar"),
       el("span", "fila-importe", euros(t.importe)),
     );
+    if (t.a_id === idActual) {
+      const recordar = el("button", "accion", "Recordar");
+      recordar.type = "button";
+      recordar.dataset.accion = "recordar";
+      recordar.dataset.de = String(t.de_id);
+      recordar.title = "Enviarle un correo con un recordatorio";
+      item.appendChild(recordar);
+    }
     if (t.de_id === idActual || t.a_id === idActual) {
       const hecho = el("button", "accion", "Marcar como pagado");
       hecho.type = "button";
@@ -249,6 +262,46 @@ export function mostrarGrupo(detalle, idActual) {
     ));
   }
   $("miembro-email").value = "";
+
+  // invitaciones pendientes
+  const invitaciones = $("lista-invitaciones");
+  invitaciones.replaceChildren();
+  for (const inv of detalle.invitaciones ?? []) {
+    invitaciones.appendChild(fila(
+      textoFila(inv.email, `Invitado por ${quien(inv.invitado_por)} · caduca el ${fechaCorta(inv.expira_en)}`),
+      el("span", "insignia pendiente", "pendiente"),
+    ));
+  }
+  $("bloque-invitaciones").hidden = (detalle.invitaciones ?? []).length === 0;
+
+  // línea de actividad
+  const actividad = $("lista-actividad");
+  actividad.replaceChildren();
+  for (const entrada of detalle.actividad ?? []) {
+    const [icono, texto] = describirActividad(entrada, quien);
+    const item = el("li", "fila actividad");
+    item.append(el("span", "punto", icono), textoFila(texto, fechaYHora(entrada.fecha)));
+    actividad.appendChild(item);
+  }
+  $("vacio-actividad").hidden = (detalle.actividad ?? []).length > 0;
+}
+
+// Convierte una entrada del historial en un icono y una frase. Un tipo desconocido
+// (por ejemplo de una versión más nueva) se muestra con un texto neutro.
+function describirActividad(entrada, quien) {
+  const d = entrada.datos ?? {};
+  const autor = quien(entrada.usuario_id);
+  switch (entrada.tipo) {
+    case "grupo_creado": return ["★", `${autor} creó el grupo`];
+    case "miembro_anadido": return ["+", `${autor} añadió a ${quien(d.miembro_id)}`];
+    case "invitacion_enviada": return ["✉", `${autor} invitó a ${d.email}`];
+    case "invitacion_aceptada": return ["✓", `${autor} se unió al grupo`];
+    case "gasto_creado": return ["€", `${autor} añadió «${d.concepto}» (${euros(d.importe)})`];
+    case "gasto_eliminado": return ["×", `${autor} eliminó «${d.concepto}» (${euros(d.importe)})`];
+    case "pago_registrado": return ["↔", `${quien(d.de_id)} pagó ${euros(d.importe)} a ${quien(d.a_id)}`];
+    case "recordatorio_enviado": return ["!", `${autor} recordó a ${quien(d.deudor_id)} su pago de ${euros(d.importe)}`];
+    default: return ["·", `${autor} hizo un cambio`];
+  }
 }
 
 // ---------- ventana de nuevo gasto ----------
@@ -269,14 +322,23 @@ export function abrirDialogoGasto(miembros, idActual) {
   const participantes = $("gasto-participantes");
   participantes.replaceChildren();
   for (const miembro of miembros) {
-    const etiqueta = el("label", "participante");
+    const fila = el("div", "participante");
+    const etiqueta = el("label", "participante-etiqueta");
     const casilla = el("input");
     casilla.type = "checkbox";
     casilla.value = String(miembro.id);
     casilla.checked = true;
     etiqueta.append(casilla, avatar(miembro, "pequeno"),
       el("span", "", miembro.id === idActual ? "Tú" : nombreCorto(miembro)));
-    participantes.appendChild(etiqueta);
+    const partes = el("input", "peso");
+    partes.type = "number";
+    partes.min = "1";
+    partes.max = "10";
+    partes.step = "1";
+    partes.value = "1";
+    partes.setAttribute("aria-label", `Partes de ${nombreCorto(miembro)}`);
+    fila.append(etiqueta, partes, el("span", "partes", "partes"));
+    participantes.appendChild(fila);
   }
   $("dialogo-gasto").showModal();
   $("gasto-concepto").focus();
@@ -326,7 +388,8 @@ export function enlazar(controlador) {
   const {
     alIniciarSesion, alRegistrar, alCerrarSesion, alReenviarConfirmacion, alNavegar,
     alCrearGrupo, alAbrirGrupo, alAnadirMiembro, alNuevoGasto, alGuardarGasto,
-    alEliminarGasto, alMarcarPagado, alComprobarActivo, alEliminarUsuario, alEliminarMiCuenta,
+    alEliminarGasto, alMarcarPagado, alRecordar, alComprobarActivo, alEliminarUsuario,
+    alEliminarMiCuenta,
   } = controlador;
 
   const alEnviar = (idFormulario, accion) =>
@@ -340,13 +403,21 @@ export function enlazar(controlador) {
   alEnviar("form-grupo", () => alCrearGrupo($("grupo-nombre").value));
   alEnviar("form-miembro", () => alAnadirMiembro($("miembro-email").value));
   alEnviar("form-gasto", () => {
-    const participantes = [...document.querySelectorAll("#gasto-participantes input:checked")]
-      .map((casilla) => Number(casilla.value));
+    const participantes = [];
+    const pesos = {};
+    for (const fila of document.querySelectorAll("#gasto-participantes .participante")) {
+      const casilla = fila.querySelector("input[type=checkbox]");
+      if (!casilla.checked) continue;
+      const id = Number(casilla.value);
+      participantes.push(id);
+      pesos[id] = Number(fila.querySelector(".peso").value);
+    }
     alGuardarGasto({
       concepto: $("gasto-concepto").value,
       importe: $("gasto-importe").value,
       pagadorId: Number($("gasto-pagador").value),
       participantes,
+      pesos,
     });
   });
 
@@ -373,9 +444,12 @@ export function enlazar(controlador) {
     if (boton && !boton.disabled) alEliminarGasto(Number(boton.dataset.id));
   });
   $("lista-transferencias").addEventListener("click", (evento) => {
-    const boton = evento.target.closest("button[data-accion='pagar']");
-    if (boton && !boton.disabled) {
+    const boton = evento.target.closest("button[data-accion]");
+    if (!boton || boton.disabled) return;
+    if (boton.dataset.accion === "pagar") {
       alMarcarPagado(Number(boton.dataset.de), Number(boton.dataset.a), Number(boton.dataset.importe));
+    } else if (boton.dataset.accion === "recordar") {
+      alRecordar(Number(boton.dataset.de));
     }
   });
   $("tabla-usuarios-cuerpo").addEventListener("click", (evento) => {

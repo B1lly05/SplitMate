@@ -3,16 +3,28 @@ poder probarlas a fondo. Todos los importes son enteros en céntimos."""
 from back.logica.modelos import Gasto, Liquidacion
 
 
-def repartir(importe: int, participantes: list[int], semilla: int = 0) -> dict[int, int]:
-    """Reparte un importe a partes iguales sin perder ni inventar ningún céntimo.
-    Si no es divisible, los céntimos sobrantes se dan de uno en uno; la semilla
-    (el id del gasto) rota quién los recibe para que no sea siempre la misma persona."""
+def repartir(importe: int, participantes: list[int], semilla: int = 0,
+             pesos: dict[int, int] | None = None) -> dict[int, int]:
+    """Reparte un importe en proporción a las partes de cada persona (1 si no se indica)
+    sin perder ni inventar ningún céntimo.
+
+    Cada uno recibe la parte entera que le toca y los céntimos que sobran se dan de uno
+    en uno a quienes tienen mayor resto (método del mayor resto). Los empates se
+    resuelven rotando con la semilla (el id del gasto) para que no sea siempre la
+    misma persona la que se lleve el céntimo."""
+    pesos = pesos or {}
     ids = sorted(participantes)
-    base, resto = divmod(importe, len(ids))
+    parte = {uid: pesos.get(uid, 1) for uid in ids}
+    total = sum(parte.values())
+    reparto = {uid: importe * parte[uid] // total for uid in ids}
+    sobrante = importe - sum(reparto.values())
     inicio = semilla % len(ids)
-    reparto = {uid: base for uid in ids}
-    for i in range(resto):
-        reparto[ids[(inicio + i) % len(ids)]] += 1
+    orden = sorted(
+        range(len(ids)),
+        key=lambda i: (-(importe * parte[ids[i]] % total), (i - inicio) % len(ids)),
+    )
+    for i in orden[:sobrante]:
+        reparto[ids[i]] += 1
     return reparto
 
 
@@ -25,7 +37,7 @@ def calcular_saldos(gastos: list[Gasto], liquidaciones: list[Liquidacion]) -> di
 
     for gasto in gastos:
         sumar(gasto.pagador_id, gasto.importe)
-        for uid, parte in repartir(gasto.importe, gasto.participantes, gasto.id).items():
+        for uid, parte in repartir(gasto.importe, gasto.participantes, gasto.id, gasto.pesos).items():
             sumar(uid, -parte)
     for pago in liquidaciones:
         sumar(pago.de_id, pago.importe)   # quien paga reduce su deuda
