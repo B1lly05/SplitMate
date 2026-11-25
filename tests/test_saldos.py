@@ -106,3 +106,12 @@ def test_propiedad_con_pesos_la_suma_siempre_es_exacta(semilla):
 def test_los_saldos_usan_los_pesos_del_gasto():
     gasto = Gasto(1, 1, "Alquiler", 3000, 1, [1, 2], 1, "2026-11-16", {2: 2})
     assert calcular_saldos([gasto], []) == {1: 2000, 2: -2000}
+
+def test_repartir_rechaza_lista_de_participantes_vacia():
+    with pytest.raises(ValueError, match="al menos un participante"):
+        repartir(100, [])
+
+
+def test_repartir_rechaza_participantes_duplicados():
+    with pytest.raises(ValueError, match="participantes repetidos"):
+        repartir(100, [1, 1, 2])

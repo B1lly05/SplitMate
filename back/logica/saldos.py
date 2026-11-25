@@ -12,6 +12,12 @@ def repartir(importe: int, participantes: list[int], semilla: int = 0,
     en uno a quienes tienen mayor resto (método del mayor resto). Los empates se
     resuelven rotando con la semilla (el id del gasto) para que no sea siempre la
     misma persona la que se lleve el céntimo."""
+    if not participantes:
+        raise ValueError("El reparto necesita al menos un participante")
+
+    if len(set(participantes)) != len(participantes):
+        raise ValueError("No puede haber participantes repetidos")
+
     pesos = pesos or {}
     ids = sorted(participantes)
     parte = {uid: pesos.get(uid, 1) for uid in ids}
