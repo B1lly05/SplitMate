@@ -109,6 +109,20 @@ def test_datos_invalidos_devuelven_400_con_mensaje(entorno):
     assert ana.post(f"/grupos/{gid}/gastos", json={"concepto": "x"}).status_code == 422
 
 
+def test_un_pago_mayor_que_la_deuda_devuelve_400_y_no_cambia_los_saldos(entorno):
+    ana, a = _persona(entorno, "ana@ejemplo.com")
+    beto, b = _persona(entorno, "beto@ejemplo.com")
+    gid = ana.post("/grupos", json={"nombre": "G"}).json()["id"]
+    ana.post(f"/grupos/{gid}/miembros", json={"email": "beto@ejemplo.com"})
+    ana.post(f"/grupos/{gid}/gastos",
+             json={"concepto": "Cena", "importe": 2000, "pagador_id": a, "participantes": [a, b]})
+    r = beto.post(f"/grupos/{gid}/liquidaciones", json={"de_id": b, "a_id": a, "importe": 50000})
+    assert r.status_code == 400 and "como mucho 10,00 €" in r.json()["error"]
+    d = ana.get(f"/grupos/{gid}").json()
+    assert d["liquidaciones"] == []
+    assert d["transferencias"] == [{"de_id": b, "a_id": a, "importe": 1000}]
+
+
 def test_el_importe_decimal_no_se_acepta(entorno):
     # Los importes van en céntimos enteros: un 12.5 no es válido
     ana, a = _persona(entorno, "ana@ejemplo.com")
