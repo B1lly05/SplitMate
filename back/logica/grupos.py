@@ -221,7 +221,19 @@ class ServicioGrupos:
             raise DatosInvalidos("El importe del pago no es válido")
         if usuario.id not in (de_id, a_id):
             raise NoAutorizado("Solo quien paga o quien cobra puede registrar el pago")
-        pago = self.grupos.crear_liquidacion(grupo.id, de_id, a_id, importe,
+        # El pago no puede pasarse de la deuda: si no, los saldos se darían la vuelta y
+        # aparecería una deuda que nadie ha generado con un gasto
+        _, _, saldos, _ = self._saldos(grupo)
+        debe, le_deben = -saldos[de_id], saldos[a_id]
+        if debe <= 0:
+            raise DatosInvalidos("Quien paga no debe nada en este grupo")
+        if le_deben <= 0:
+            raise DatosInvalidos("A quien cobra no le deben nada en este grupo")
+        maximo = min(debe, le_deben)
+        if importe > maximo:
+            euros = f"{maximo / 100:.2f}".replace(".", ",")
+            raise DatosInvalidos(f"Ese pago es mayor que la deuda: como mucho {euros} €")
+        pago =self.grupos.crear_liquidacion(grupo.id, de_id, a_id, importe,
                                              self.reloj().isoformat())
         self._anotar(grupo.id, usuario.id, "pago_registrado", de_id=de_id, a_id=a_id,
                      importe=importe)

@@ -210,6 +210,78 @@ def test_un_tercero_no_puede_registrar_un_pago_ajeno(pila):
         servicio.registrar_liquidacion(gente["carla"], g.id, a, b, 500)
 
 
+def test_se_puede_pagar_la_deuda_en_varias_veces(pila):
+    servicio, gente = pila
+    g = _grupo_con(pila, "beto")
+    a, b = gente["ana"].id, gente["beto"].id
+    servicio.registrar_gasto(gente["ana"], g.id, "Cena", 2000, a, [a, b])
+    servicio.registrar_liquidacion(gente["beto"], g.id, b, a, 400)
+    servicio.registrar_liquidacion(gente["ana"], g.id, b, a, 600)  # también puede apuntarlo quien cobra
+    d = servicio.detalle(gente["ana"], g.id)
+    assert d.saldos == {a: 0, b: 0} and len(d.liquidaciones) == 2
+
+
+def test_un_pago_mayor_que_la_deuda_se_rechaza_e_indica_el_maximo(pila):
+    servicio, gente = pila
+    g = _grupo_con(pila, "beto")
+    a, b = gente["ana"].id, gente["beto"].id
+    servicio.registrar_gasto(gente["ana"], g.id, "Cena", 2000, a, [a, b])
+    with pytest.raises(DatosInvalidos, match="10,00 €"):
+        servicio.registrar_liquidacion(gente["beto"], g.id, b, a, 1001)  # un céntimo de más
+    d = servicio.detalle(gente["ana"], g.id)
+    assert d.saldos == {a: 1000, b: -1000} and d.liquidaciones == []
+
+
+def test_tras_un_pago_parcial_el_maximo_es_lo_que_queda(pila):
+    servicio, gente = pila
+    g = _grupo_con(pila, "beto")
+    a, b = gente["ana"].id, gente["beto"].id
+    servicio.registrar_gasto(gente["ana"], g.id, "Cena", 2000, a, [a, b])
+    servicio.registrar_liquidacion(gente["beto"], g.id, b, a, 750)
+    with pytest.raises(DatosInvalidos, match="2,50 €"):
+        servicio.registrar_liquidacion(gente["beto"], g.id, b, a, 251)
+    servicio.registrar_liquidacion(gente["beto"], g.id, b, a, 250)
+    assert servicio.detalle(gente["ana"], g.id).saldos == {a: 0, b: 0}
+
+
+def test_no_se_puede_pagar_si_no_hay_deuda(pila):
+    servicio, gente = pila
+    g = _grupo_con(pila, "beto")
+    a, b = gente["ana"].id, gente["beto"].id
+    with pytest.raises(DatosInvalidos, match="no debe nada"):
+        servicio.registrar_liquidacion(gente["beto"], g.id, b, a, 100)
+    servicio.registrar_gasto(gente["ana"], g.id, "Cena", 2000, a, [a, b])
+    # Al revés tampoco: Ana es la acreedora, pagar a Beto crearía una deuda falsa
+    with pytest.raises(DatosInvalidos, match="no debe nada"):
+        servicio.registrar_liquidacion(gente["ana"], g.id, a, b, 100)
+
+
+def test_no_se_puede_pagar_a_quien_no_le_deben(pila):
+    servicio, gente = pila
+    g = _grupo_con(pila, "beto", "carla")
+    a, b, c = (gente[n].id for n in ("ana", "beto", "carla"))
+    servicio.registrar_gasto(gente["ana"], g.id, "Cena", 3000, a, [a, b, c])
+    # Beto debe 10 € pero a Carla no le deben nada: el pago descuadraría a Carla
+    with pytest.raises(DatosInvalidos, match="no le deben nada"):
+        servicio.registrar_liquidacion(gente["beto"], g.id, b, c, 500)
+
+
+def test_el_maximo_es_lo_menor_entre_lo_que_se_debe_y_lo_que_le_deben(pila):
+    servicio, gente = pila
+    g = _grupo_con(pila, "beto", "carla")
+    a, b, c = (gente[n].id for n in ("ana", "beto", "carla"))
+    # Ana y Carla pagan, Beto no: Beto debe 25 €, a Ana le deben 15 € y a Carla 10 €
+    servicio.registrar_gasto(gente["ana"], g.id, "Hotel", 3000, a, [a, b])
+    servicio.registrar_gasto(gente["carla"], g.id, "Taxi", 2000, c, [b, c])
+    assert servicio.detalle(gente["ana"], g.id).saldos == {a: 1500, b: -2500, c: 1000}
+    with pytest.raises(DatosInvalidos, match="10,00 €"):
+        servicio.registrar_liquidacion(gente["beto"], g.id, b, c, 1500)
+    # Se puede pagar a cualquier acreedor, no solo al de la transferencia sugerida
+    servicio.registrar_liquidacion(gente["beto"], g.id, b, c, 1000)
+    servicio.registrar_liquidacion(gente["beto"], g.id, b, a, 1500)
+    assert servicio.detalle(gente["ana"], g.id).saldos == {a: 0, b: 0, c: 0}
+
+
 @pytest.mark.parametrize("de,a,importe", [("ana", "ana", 100), ("ana", "beto", 0), ("ana", "dani", 100)])
 def test_pagos_invalidos_se_rechazan(pila, de, a, importe):
     servicio, gente = pila
